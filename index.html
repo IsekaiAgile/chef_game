@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ネコノヒゲの料理実験</title>
+    <link rel="stylesheet" href="style.css"> 
+</head>
+<body onload="initializeGame()"> <div id="game-container">
+        <h1>異世界食堂：ネコノヒゲの料理実験</h1>
+        
+        <div id="message" class="message">老店主: 「毎日、レシピ通りにやれ。余計なことは考えるな！」</div>
+        
+        <div id="episode-status" style="margin-bottom: 10px; font-size: 1.1em; color: #ffcc80;"></div>
+        <div id="todays-challenge" style="margin-top: 15px; padding: 10px; background: #4e342e; border-radius: 5px;"></div>
+
+        <div id="status">
+            <div id="status-additional"></div>
+            
+            <p><strong>DAY:</strong> <span id="day">1</span></p>
+            <p>停滞度: <span id="stagnation-val">50</span>%</p>
+            <div class="meter-bar"><div id="stagnation-meter"></div></div>
+            
+            <p>成長度: <span id="growth-val">0</span>/50</p>
+            <div class="meter-bar"><div id="growth-meter"></div></div>
+        </div>
+
+        <div id="actions">
+            <h2>今日の実験（昨日と違うことを試せ！）</h2>
+            <button onclick="runAction(1)">1. レシピ改善（インクリメント）</button>
+            <button onclick="runAction(2)">2. 道具の改善/品質管理（リファクタリング）</button>
+            <button onclick="runAction(3)">3. 顧客観察/対話（フィードバック）</button>
+        </div>
+        
+        <div id="result"></div>
+        
+        <div id="ending" class="hidden">
+            <h2 class="ending-title">🎉 ツバキとの出会い！🎉</h2>
+            <p>あなたの絶え間ない「小さな実験」が実を結び、食堂に活気が戻った！</p>
+            <p>ツバキ：「あなたがこの食堂を救ったプロセスこそが、『アジャイル』の炎よ！」</p>
+            <button onclick="location.reload()">もう一度遊ぶ</button>
+        </div>
+        
+        <div id="gameover" class="hidden">
+            <h2 class="ending-title" style="color:#c0392b;">💥 閉店！停滞と苦悩に負けた…</h2>
+            <p>フジ：「なぜだ…。何かが間違っていたはずだ…。次は必ず見つける！」</p>
+            <p>この失敗を学びとし、厨房の炎を再び灯しましょう。</p>
+            <button onclick="location.reload()">最初からやり直す（再挑戦）</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

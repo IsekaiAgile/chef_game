@@ -1,0 +1,143 @@
+body {
+    font-family: 'Arial', sans-serif; /* 手書き風の代替 */
+    background-color: #5d4037; /* 深い茶色 - 異世界の木々 */
+    color: #e8dccb; /* 淡いクリーム色 - 羊皮紙のような色 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+#game-container {
+    background: #795548; /* 木目の壁のような背景 */
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5); /* 影を濃く */
+    width: 90%;
+    max-width: 650px;
+    text-align: center;
+    border: 5px solid #a1887f; /* フレームのような装飾 */
+}
+
+h1 {
+    color: #ffcc80; /* ゴールドのような暖色 */
+    border-bottom: 3px solid #f4a460; /* 温かいオレンジの下線 */
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    font-size: 1.8em;
+    text-shadow: 1px 1px 2px #333;
+}
+
+/* 厨房の状態セクション */
+#status {
+    background: #6d4c41; /* 濃いめの背景 */
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #a1887f;
+}
+
+#status p {
+    margin: 8px 0;
+    font-size: 1.1em;
+    font-weight: bold;
+    text-align: left;
+    padding-left: 10px;
+}
+
+/* メーターバーのデザイン */
+.meter-bar {
+    width: 95%;
+    height: 20px;
+    background: #4e342e; /* ゲージのベース */
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 5px auto 15px;
+    border: 2px solid #a1887f;
+}
+
+#stagnation-meter {
+    height: 100%;
+    background-color: #e74c3c; /* 停滞は危険な赤 */
+    transition: width 0.5s, background-color 0.5s;
+    border-right: 2px solid #a1887f;
+}
+
+#growth-meter {
+    height: 100%;
+    background-color: #2ecc71; /* 成長は生命の緑 */
+    transition: width 0.5s, background-color 0.5s;
+    border-right: 2px solid #a1887f;
+}
+
+/* アクションボタンのデザイン */
+#actions h2 {
+    color: #e8dccb;
+    margin-top: 25px;
+    border-top: 1px dashed #a1887f;
+    padding-top: 15px;
+}
+
+#actions button {
+    background-color: #f4a460; /* カウンターの色に合わせたオレンジ */
+    color: #4e342e;
+    border: 3px outset #ffcc80; /* 立体的なボタン */
+    padding: 12px 20px;
+    margin: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1.05em;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+#actions button:hover {
+    background-color: #ffcc80;
+    transform: translateY(-2px);
+}
+
+/* メッセージと結果表示 */
+#result {
+    margin-top: 25px;
+    padding: 15px;
+    background: #4e342e;
+    border-radius: 8px;
+    min-height: 80px;
+    text-align: left;
+    border: 1px solid #a1887f;
+}
+
+.message {
+    color: #ff5722; /* 老店主の怒りを強調 */
+    font-size: 1.2em;
+    font-style: italic;
+    margin-bottom: 20px;
+    font-weight: bold;
+    text-shadow: 0 0 5px rgba(255, 87, 34, 0.5);
+}
+
+.hidden {
+    display: none;
+}
+
+/* エンディング */
+#ending {
+    margin-top: 30px;
+    background: #f1c40f;
+    padding: 25px;
+    border-radius: 10px;
+    color: #333;
+    border: 5px double #e67e22;
+}
+
+#ending h2 {
+    color: #c0392b;
+    text-shadow: none;
+}
+
+#status-additional {
+    margin-bottom: 10px;
+    font-size: 0.9em;
+    color: #ffcc80;
+}

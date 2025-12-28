@@ -2,49 +2,120 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ネコノヒゲの料理実験</title>
-    <link rel="stylesheet" href="style.css"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ネコノヒゲ：アジャイル厨房</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
-<body onload="initializeGame()"> <div id="game-container">
-        <h1>異世界食堂：ネコノヒゲの料理実験</h1>
-        
-        <div id="message" class="message">老店主: 「毎日、レシピ通りにやれ。余計なことは考えるな！」</div>
-        
-        <div id="episode-status" style="margin-bottom: 10px; font-size: 1.1em; color: #ffcc80;"></div>
-        <div id="todays-challenge" style="margin-top: 15px; padding: 10px; background: #4e342e; border-radius: 5px;"></div>
+<body onload="initializeGame()">
+    <div id="game-container">
+        <header class="game-header">
+            <h1>ネコノヒゲ：アジャイル厨房</h1>
+            <p class="subtitle">異世界食堂で学ぶアジャイルマインド</p>
+        </header>
 
-        <div id="status">
+        <div class="protagonist-section">
+            <div id="protagonist-area">
+                <img id="fuji-image" src="fuji1.jpg" alt="フジ">
+                <div class="protagonist-name">フジ</div>
+            </div>
+            <div id="message" class="message">老店主：「レシピ通りにやれ。余計なことは考えるな！」</div>
+        </div>
+
+        <div class="card" id="episode-card">
+            <div id="episode-status"></div>
+        </div>
+
+        <div class="card" id="challenge-card">
+            <div id="todays-challenge"></div>
+        </div>
+
+        <div class="card" id="status-card">
+            <div class="meters-section">
+                <div class="meter-group">
+                    <div class="meter-label">
+                        <span>日数</span>
+                        <span id="day">1</span>
+                    </div>
+                </div>
+
+                <div class="meter-group">
+                    <div class="meter-label">
+                        <span>停滞度</span>
+                        <span><span id="stagnation-val">50</span>%</span>
+                    </div>
+                    <div class="meter-bar stagnation-bar">
+                        <div id="stagnation-meter" class="meter-fill stagnation-fill"></div>
+                    </div>
+                </div>
+
+                <div class="meter-group">
+                    <div class="meter-label">
+                        <span>成長度</span>
+                        <span><span id="growth-val">0</span>/50</span>
+                    </div>
+                    <div class="meter-bar growth-bar">
+                        <div id="growth-meter" class="meter-fill growth-fill"></div>
+                    </div>
+                </div>
+            </div>
+
             <div id="status-additional"></div>
-            
-            <p><strong>DAY:</strong> <span id="day">1</span></p>
-            <p>停滞度: <span id="stagnation-val">50</span>%</p>
-            <div class="meter-bar"><div id="stagnation-meter"></div></div>
-            
-            <p>成長度: <span id="growth-val">0</span>/50</p>
-            <div class="meter-bar"><div id="growth-meter"></div></div>
+
+            <div id="combo-display"></div>
         </div>
 
-        <div id="actions">
-            <h2>今日の実験（昨日と違うことを試せ！）</h2>
-            <button onclick="runAction(1)">1. レシピ改善（インクリメント）</button>
-            <button onclick="runAction(2)">2. 道具の改善/品質管理（リファクタリング）</button>
-            <button onclick="runAction(3)">3. 顧客観察/対話（フィードバック）</button>
+        <div class="card" id="actions-card">
+            <div id="actions">
+                <h2>今日のスプリント</h2>
+                <p class="actions-hint">毎日違うアクションを試そう！</p>
+                <div class="action-buttons">
+                    <button class="action-btn tasting" onclick="runAction(1)">
+                        <span class="btn-icon">🍳</span>
+                        <span class="btn-text">イテレーション試食</span>
+                    </button>
+                    <button class="action-btn cicd" onclick="runAction(2)">
+                        <span class="btn-icon">🔧</span>
+                        <span class="btn-text">CI/CDメンテナンス</span>
+                    </button>
+                    <button class="action-btn feedback" onclick="runAction(3)">
+                        <span class="btn-icon">👥</span>
+                        <span class="btn-text">ユーザーの声を聴く</span>
+                    </button>
+                </div>
+            </div>
         </div>
-        
-        <div id="result"></div>
-        
-        <div id="ending" class="hidden">
-            <h2 class="ending-title">🎉 ツバキとの出会い！🎉</h2>
-            <p>あなたの絶え間ない「小さな実験」が実を結び、食堂に活気が戻った！</p>
-            <p>ツバキ：「あなたがこの食堂を救ったプロセスこそが、『アジャイル』の炎よ！」</p>
-            <button onclick="location.reload()">もう一度遊ぶ</button>
+
+        <div class="card" id="result-card">
+            <div id="result"></div>
         </div>
-        
-        <div id="gameover" class="hidden">
-            <h2 class="ending-title" style="color:#c0392b;">💥 閉店！停滞と苦悩に負けた…</h2>
-            <p>フジ：「なぜだ…。何かが間違っていたはずだ…。次は必ず見つける！」</p>
-            <p>この失敗を学びとし、厨房の炎を再び灯しましょう。</p>
-            <button onclick="location.reload()">最初からやり直す（再挑戦）</button>
+
+        <div id="ending" class="hidden overlay-screen">
+            <div class="overlay-content victory-screen">
+                <h2>クリア！</h2>
+                <p class="victory-text">あなたの継続的な実験が厨房を変革した！</p>
+                <p class="victory-quote">「お前がこの食堂を救ったプロセス…それがアジャイルだ！」</p>
+                <button class="restart-btn" onclick="location.reload()">もう一度遊ぶ</button>
+            </div>
+        </div>
+
+        <div id="gameover" class="hidden overlay-screen">
+            <div class="overlay-content gameover-screen">
+                <h2>閉店…</h2>
+                <p>停滞と技術的負債が厨房を圧倒した…</p>
+                <p class="gameover-quote">「なぜだ…何かが間違っていたはず。次こそ答えを見つける！」</p>
+                <button class="restart-btn" onclick="location.reload()">再挑戦</button>
+            </div>
+        </div>
+
+        <div id="agile-tip-modal" class="hidden overlay-screen">
+            <div class="overlay-content tip-screen">
+                <h2>今日のアジャイル格言</h2>
+                <p id="agile-tip-text"></p>
+                <button class="tip-close-btn" onclick="closeAgileTip()">なるほど！</button>
+            </div>
         </div>
     </div>
 

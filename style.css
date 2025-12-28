@@ -1,143 +1,666 @@
-body {
-    font-family: 'Arial', sans-serif; /* 手書き風の代替 */
-    background-color: #5d4037; /* 深い茶色 - 異世界の木々 */
-    color: #e8dccb; /* 淡いクリーム色 - 羊皮紙のような色 */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
+/* ===== NEKONOHIGE: Agile Kitchen - Modern UI ===== */
+
+:root {
+    --bg-dark: #1a1a2e;
+    --bg-card: #16213e;
+    --bg-card-hover: #1f3460;
+    --accent-primary: #e94560;
+    --accent-secondary: #0f3460;
+    --accent-gold: #f4a460;
+    --accent-success: #00d9a5;
+    --accent-warning: #ffc107;
+    --accent-danger: #ff4757;
+    --text-primary: #edf2f7;
+    --text-secondary: #a0aec0;
+    --text-muted: #718096;
+    --border-color: #2d3748;
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+* {
+    box-sizing: border-box;
     margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, var(--bg-dark) 0%, #0f0f23 100%);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 10px;
+    line-height: 1.6;
 }
 
 #game-container {
-    background: #795548; /* 木目の壁のような背景 */
-    padding: 30px;
-    border-radius: 15px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5); /* 影を濃く */
-    width: 90%;
-    max-width: 650px;
+    max-width: 480px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* ===== Header ===== */
+.game-header {
     text-align: center;
-    border: 5px solid #a1887f; /* フレームのような装飾 */
+    padding: 15px 10px;
 }
 
-h1 {
-    color: #ffcc80; /* ゴールドのような暖色 */
-    border-bottom: 3px solid #f4a460; /* 温かいオレンジの下線 */
-    padding-bottom: 10px;
-    margin-bottom: 20px;
-    font-size: 1.8em;
-    text-shadow: 1px 1px 2px #333;
+.game-header h1 {
+    font-size: 1.6em;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent-gold), var(--accent-primary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 4px;
 }
 
-/* 厨房の状態セクション */
-#status {
-    background: #6d4c41; /* 濃いめの背景 */
-    padding: 15px;
-    border-radius: 10px;
-    margin-bottom: 20px;
-    border: 1px solid #a1887f;
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    font-weight: 600;
 }
 
-#status p {
-    margin: 8px 0;
-    font-size: 1.1em;
-    font-weight: bold;
-    text-align: left;
-    padding-left: 10px;
+/* ===== Cards ===== */
+.card {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
 }
 
-/* メーターバーのデザイン */
-.meter-bar {
-    width: 95%;
-    height: 20px;
-    background: #4e342e; /* ゲージのベース */
-    border-radius: 10px;
-    overflow: hidden;
-    margin: 5px auto 15px;
-    border: 2px solid #a1887f;
+/* ===== Protagonist Section ===== */
+.protagonist-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px;
 }
 
-#stagnation-meter {
-    height: 100%;
-    background-color: #e74c3c; /* 停滞は危険な赤 */
-    transition: width 0.5s, background-color 0.5s;
-    border-right: 2px solid #a1887f;
+#protagonist-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
 }
 
-#growth-meter {
-    height: 100%;
-    background-color: #2ecc71; /* 成長は生命の緑 */
-    transition: width 0.5s, background-color 0.5s;
-    border-right: 2px solid #a1887f;
+#fuji-image {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid var(--accent-gold);
+    object-fit: cover;
+    box-shadow: 0 0 20px rgba(244, 164, 96, 0.3);
+    animation: float 3s ease-in-out infinite;
 }
 
-/* アクションボタンのデザイン */
-#actions h2 {
-    color: #e8dccb;
-    margin-top: 25px;
-    border-top: 1px dashed #a1887f;
-    padding-top: 15px;
+#fuji-image.action-bounce {
+    animation: actionBounce 0.6s ease;
 }
 
-#actions button {
-    background-color: #f4a460; /* カウンターの色に合わせたオレンジ */
-    color: #4e342e;
-    border: 3px outset #ffcc80; /* 立体的なボタン */
-    padding: 12px 20px;
-    margin: 8px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: bold;
-    font-size: 1.05em;
-    transition: background-color 0.2s, transform 0.1s;
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
 }
 
-#actions button:hover {
-    background-color: #ffcc80;
-    transform: translateY(-2px);
+@keyframes actionBounce {
+    0% { transform: scale(1) translateY(0); }
+    25% { transform: scale(1.15) translateY(-12px); }
+    50% { transform: scale(1.1) translateY(-6px); }
+    75% { transform: scale(1.05) translateY(-3px); }
+    100% { transform: scale(1) translateY(0); }
 }
 
-/* メッセージと結果表示 */
-#result {
-    margin-top: 25px;
-    padding: 15px;
-    background: #4e342e;
-    border-radius: 8px;
-    min-height: 80px;
-    text-align: left;
-    border: 1px solid #a1887f;
+.protagonist-name {
+    font-size: 0.75em;
+    font-weight: 700;
+    color: var(--accent-gold);
+    margin-top: 6px;
 }
 
 .message {
-    color: #ff5722; /* 老店主の怒りを強調 */
-    font-size: 1.2em;
-    font-style: italic;
-    margin-bottom: 20px;
-    font-weight: bold;
-    text-shadow: 0 0 5px rgba(255, 87, 34, 0.5);
-}
-
-.hidden {
-    display: none;
-}
-
-/* エンディング */
-#ending {
-    margin-top: 30px;
-    background: #f1c40f;
-    padding: 25px;
-    border-radius: 10px;
-    color: #333;
-    border: 5px double #e67e22;
-}
-
-#ending h2 {
-    color: #c0392b;
-    text-shadow: none;
-}
-
-#status-additional {
-    margin-bottom: 10px;
+    flex: 1;
     font-size: 0.9em;
-    color: #ffcc80;
+    color: var(--text-secondary);
+    font-style: italic;
+    background: var(--bg-card);
+    padding: 12px;
+    border-radius: 12px;
+    border-left: 3px solid var(--accent-primary);
+}
+
+.episode-clear {
+    color: var(--accent-success);
+    font-weight: 700;
+}
+
+.victory {
+    color: var(--accent-gold);
+    font-weight: 700;
+}
+
+/* ===== Episode Card ===== */
+#episode-card {
+    background: linear-gradient(135deg, var(--accent-secondary), var(--bg-card));
+}
+
+.episode-title {
+    font-size: 0.95em;
+    font-weight: 700;
+    color: var(--accent-gold);
+    margin-bottom: 6px;
+}
+
+.episode-goal {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+}
+
+/* ===== Challenge Card ===== */
+#challenge-card {
+    border-left: 3px solid var(--accent-warning);
+}
+
+.challenge-label {
+    font-size: 0.75em;
+    font-weight: 700;
+    color: var(--accent-warning);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+}
+
+.challenge-text {
+    font-size: 0.9em;
+    color: var(--text-primary);
+}
+
+.challenge-text.urgent {
+    color: var(--accent-danger);
+    font-weight: 700;
+}
+
+/* ===== Status Card ===== */
+.meters-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.meter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.meter-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8em;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.meter-bar {
+    height: 10px;
+    background: var(--bg-dark);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.meter-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.4s ease;
+}
+
+.stagnation-fill {
+    background: linear-gradient(90deg, var(--accent-warning), var(--accent-danger));
+}
+
+.growth-fill {
+    background: linear-gradient(90deg, var(--accent-success), #00b894);
+}
+
+/* Status Additional */
+#status-additional {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+    margin-bottom: 12px;
+}
+
+.status-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8em;
+}
+
+.status-label {
+    color: var(--text-muted);
+}
+
+.status-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.status-value.debt {
+    color: var(--accent-danger);
+}
+
+.status-row.warning {
+    padding: 6px 10px;
+    background: rgba(255, 71, 87, 0.1);
+    border-radius: 6px;
+}
+
+.alert-box {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.8em;
+    font-weight: 600;
+    margin-top: 8px;
+}
+
+.alert-box.danger {
+    background: rgba(255, 71, 87, 0.15);
+    color: var(--accent-danger);
+    border: 1px solid rgba(255, 71, 87, 0.3);
+}
+
+.alert-box.warning {
+    background: rgba(255, 193, 7, 0.15);
+    color: var(--accent-warning);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+/* ===== Combo Display ===== */
+#combo-display {
+    background: var(--bg-dark);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+}
+
+.combo-header {
+    font-size: 0.75em;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+}
+
+.combo-slots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
+.combo-slot {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5em;
+    transition: all 0.3s ease;
+}
+
+.combo-slot.empty {
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px dashed var(--border-color);
+    color: var(--text-muted);
+    font-size: 1.2em;
+}
+
+.combo-slot.filled {
+    background: linear-gradient(135deg, var(--accent-secondary), var(--bg-card));
+    border: 2px solid var(--accent-gold);
+    box-shadow: 0 2px 10px rgba(244, 164, 96, 0.2);
+}
+
+.combo-slot.filled span {
+    font-size: 0.45em;
+    margin-top: 2px;
+    color: var(--text-secondary);
+}
+
+.combo-perfect {
+    margin-top: 10px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, var(--accent-gold), var(--accent-primary));
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.9em;
+    border-radius: 20px;
+    display: inline-block;
+    animation: perfectPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes perfectPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 10px rgba(244, 164, 96, 0.4); }
+    50% { transform: scale(1.05); box-shadow: 0 0 25px rgba(244, 164, 96, 0.7); }
+}
+
+.combo-streak {
+    margin-top: 6px;
+    color: var(--accent-primary);
+    font-weight: 700;
+    font-size: 0.85em;
+}
+
+.combo-hint {
+    margin-top: 8px;
+    color: var(--accent-success);
+    font-size: 0.8em;
+}
+
+/* ===== Actions Card ===== */
+#actions-card {
+    background: linear-gradient(135deg, var(--bg-card), var(--accent-secondary));
+}
+
+#actions h2 {
+    font-size: 1em;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    text-align: center;
+}
+
+.actions-hint {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.9em;
+    transition: all 0.2s ease;
+    color: #fff;
+}
+
+.action-btn .btn-icon {
+    font-size: 1.4em;
+}
+
+.action-btn.tasting {
+    background: linear-gradient(135deg, #e17055, #d63031);
+}
+
+.action-btn.cicd {
+    background: linear-gradient(135deg, #0984e3, #6c5ce7);
+}
+
+.action-btn.feedback {
+    background: linear-gradient(135deg, #00b894, #00cec9);
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.action-btn:active {
+    transform: translateY(0);
+}
+
+/* ===== Result Card ===== */
+#result-card {
+    min-height: 60px;
+}
+
+#result {
+    font-size: 0.85em;
+}
+
+.day-header {
+    font-weight: 700;
+    color: var(--accent-gold);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.result-item {
+    padding: 8px 12px;
+    margin: 6px 0;
+    border-radius: 8px;
+    font-size: 0.9em;
+}
+
+.result-item.positive {
+    background: rgba(0, 217, 165, 0.1);
+    border-left: 3px solid var(--accent-success);
+    color: var(--accent-success);
+}
+
+.result-item.negative {
+    background: rgba(255, 71, 87, 0.1);
+    border-left: 3px solid var(--accent-danger);
+    color: var(--accent-danger);
+}
+
+.result-item.success {
+    background: rgba(0, 217, 165, 0.1);
+    border-left: 3px solid var(--accent-success);
+}
+
+.result-item.failure {
+    background: rgba(255, 71, 87, 0.1);
+    border-left: 3px solid var(--accent-danger);
+}
+
+.result-item.neutral {
+    background: rgba(160, 174, 192, 0.1);
+    border-left: 3px solid var(--text-muted);
+}
+
+.result-item.perfect {
+    background: linear-gradient(135deg, rgba(244, 164, 96, 0.2), rgba(233, 69, 96, 0.2));
+    border-left: 3px solid var(--accent-gold);
+    color: var(--accent-gold);
+    font-weight: 600;
+}
+
+.result-item.streak {
+    background: rgba(233, 69, 96, 0.15);
+    border-left: 3px solid var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.event-box {
+    padding: 10px 12px;
+    margin: 8px 0;
+    border-radius: 8px;
+    font-size: 0.85em;
+}
+
+.event-box.negative {
+    background: rgba(255, 71, 87, 0.1);
+    border: 1px solid rgba(255, 71, 87, 0.3);
+    color: var(--accent-danger);
+}
+
+.event-box.special {
+    background: rgba(244, 164, 96, 0.15);
+    border: 1px solid rgba(244, 164, 96, 0.3);
+    color: var(--accent-gold);
+}
+
+.event-box.scope-change {
+    background: rgba(255, 193, 7, 0.15);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    color: var(--accent-warning);
+    font-weight: 600;
+}
+
+/* ===== Overlay Screens ===== */
+.hidden {
+    display: none !important;
+}
+
+.overlay-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.overlay-content {
+    background: var(--bg-card);
+    border-radius: 20px;
+    padding: 30px;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-color);
+}
+
+.overlay-content h2 {
+    font-size: 1.8em;
+    margin-bottom: 15px;
+}
+
+.victory-screen h2 {
+    color: var(--accent-gold);
+}
+
+.gameover-screen h2 {
+    color: var(--accent-danger);
+}
+
+.tip-screen h2 {
+    color: var(--accent-success);
+    font-size: 1.2em;
+}
+
+.victory-text, .gameover-quote, .victory-quote {
+    color: var(--text-secondary);
+    margin: 10px 0;
+}
+
+.victory-quote {
+    font-style: italic;
+    color: var(--accent-gold);
+}
+
+#agile-tip-text {
+    font-size: 1.1em;
+    color: var(--text-primary);
+    line-height: 1.6;
+    margin: 20px 0;
+}
+
+.restart-btn, .tip-close-btn {
+    margin-top: 20px;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 25px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 1em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.restart-btn {
+    background: linear-gradient(135deg, var(--accent-gold), var(--accent-primary));
+    color: #fff;
+}
+
+.tip-close-btn {
+    background: linear-gradient(135deg, var(--accent-success), #00b894);
+    color: #fff;
+}
+
+.restart-btn:hover, .tip-close-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* ===== Responsive ===== */
+@media screen and (max-height: 700px) {
+    body {
+        padding: 5px;
+    }
+
+    #game-container {
+        gap: 8px;
+    }
+
+    .card {
+        padding: 12px;
+        border-radius: 12px;
+    }
+
+    .game-header {
+        padding: 8px;
+    }
+
+    .game-header h1 {
+        font-size: 1.3em;
+    }
+
+    #fuji-image {
+        width: 60px;
+        height: 60px;
+    }
+
+    .combo-slot {
+        width: 50px;
+        height: 50px;
+        font-size: 1.2em;
+    }
+
+    .action-btn {
+        padding: 10px 14px;
+    }
+
+    #result-card {
+        min-height: 40px;
+    }
+}
+
+@media screen and (max-width: 360px) {
+    .game-header h1 {
+        font-size: 1.2em;
+    }
+
+    .action-btn .btn-text {
+        font-size: 0.8em;
+    }
 }

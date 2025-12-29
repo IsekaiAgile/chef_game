@@ -148,7 +148,10 @@ const GameEvents = {
 
     // Game End Events
     GAME_OVER: 'game:over',
-    GAME_VICTORY: 'game:victory'
+    GAME_VICTORY: 'game:victory',
+
+    // Intro Events
+    INTRO_COMPLETED: 'intro:completed'
 };
 
 // Singleton instance

@@ -102,9 +102,14 @@ class CharacterDisplay {
     }
 
     _setupEventListeners() {
-        // Listen for character events
+        // SINGLE-SPEAKER FOCUS MODE:
+        // Only show the character who is currently speaking
+        // All other characters are hidden
+
+        // CHARACTER_SHOWN is ignored in focus mode - we only show speakers
+        // This prevents EpisodeManager's multi-character setup from interfering
         this._eventBus.on(GameEvents.CHARACTER_SHOWN, (data) => {
-            this.showCharacter(data.characterId, data.options);
+            // Ignored in focus mode - speaker events handle display
         });
 
         this._eventBus.on(GameEvents.CHARACTER_HIDDEN, (data) => {
@@ -112,17 +117,21 @@ class CharacterDisplay {
         });
 
         this._eventBus.on(GameEvents.CHARACTER_SPEAKING, (data) => {
-            this.setSpeaking(data.characterId);
+            // Focus mode: Show ONLY the speaking character
+            this.focusOnCharacter(data.characterId);
         });
 
-        // Listen for scene changes to reset characters
+        // Listen for scene changes
         this._eventBus.on(GameEvents.SCENE_CHANGED, () => {
-            // Don't hide all on scene change, let the scene control it
+            // Hide all characters on scene change
+            this.hideAllCharacters();
         });
 
         // Listen for dialogue completion
         this._eventBus.on(GameEvents.DIALOGUE_COMPLETED, () => {
             this._speakingCharacter = null;
+            // Hide all characters when dialogue ends
+            this.hideAllCharacters();
         });
     }
 
@@ -201,6 +210,64 @@ class CharacterDisplay {
         this._characters.forEach((char, id) => {
             if (char.visible) {
                 this.hideCharacter(id);
+            }
+        });
+    }
+
+    /**
+     * Focus mode: Show ONLY the speaking character, hide all others
+     * @param {string} characterId - Character to focus on
+     */
+    focusOnCharacter(characterId) {
+        const character = this._characters.get(characterId);
+
+        // Narrator has no sprite - hide all characters
+        if (characterId === 'narrator' || !character || !character.elementId) {
+            this.hideAllCharacters();
+            this._speakingCharacter = null;
+            return;
+        }
+
+        this._speakingCharacter = characterId;
+
+        // Hide all other characters, show only the focused one
+        this._characters.forEach((char, id) => {
+            if (!char.elementId) return;
+
+            const element = document.getElementById(char.elementId);
+            if (!element) return;
+
+            if (id === characterId) {
+                // Show and center the focused character
+                element.classList.remove('hidden', 'char-exit', 'dimmed');
+                element.classList.add('char-enter', 'speaking', 'focus-mode');
+
+                // Update image
+                const img = element.querySelector('.vn-sprite-img');
+                if (img && char.image) {
+                    img.src = char.image;
+                    img.alt = char.name;
+                }
+
+                char.visible = true;
+                this._activeCharacters.add(id);
+
+                // Remove animation class after completion
+                setTimeout(() => {
+                    element.classList.remove('char-enter');
+                }, this._config.transitionDuration);
+            } else if (char.visible) {
+                // Hide other characters with fade out
+                element.classList.add('char-exit');
+                element.classList.remove('speaking', 'focus-mode');
+
+                setTimeout(() => {
+                    element.classList.add('hidden');
+                    element.classList.remove('char-exit');
+                }, this._config.transitionDuration);
+
+                char.visible = false;
+                this._activeCharacters.delete(id);
             }
         });
     }

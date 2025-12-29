@@ -1083,6 +1083,71 @@ body.vn-active #result-card {
     }
 }
 
+/* ===== SINGLE-SPEAKER FOCUS MODE ===== */
+/*
+ * In focus mode, only ONE character is shown at a time
+ * The character is centered and massive (90vh)
+ * Creates a more impactful, cinematic presentation
+ */
+.vn-character.focus-mode {
+    /* Center all positions when in focus mode */
+    left: 50% !important;
+    transform: translateX(-50%) scale(1) translateY(-5px) !important;
+    z-index: 10;
+}
+
+.vn-character.focus-mode .vn-sprite-img {
+    height: 90vh; /* Massive, impactful size */
+}
+
+/* Focus mode combined with speaking - maximum impact */
+.vn-character.focus-mode.speaking {
+    opacity: 1;
+    filter: brightness(1.1) saturate(1.15) contrast(1.05);
+}
+
+.vn-character.focus-mode.speaking .vn-sprite-img {
+    filter:
+        drop-shadow(0 0 20px rgba(255, 255, 255, 0.6))
+        drop-shadow(0 0 40px rgba(255, 255, 255, 0.4))
+        drop-shadow(0 0 60px rgba(255, 215, 0, 0.3))
+        drop-shadow(0 20px 40px rgba(0, 0, 0, 0.6));
+}
+
+/* Focus mode enter animation - smooth fade in from center */
+.vn-character.focus-mode.char-enter {
+    animation: focusModeEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes focusModeEnter {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) scale(0.95) translateY(20px);
+        filter: brightness(0) saturate(0);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) scale(1) translateY(-5px);
+        filter: brightness(1.1) saturate(1.15) contrast(1.05);
+    }
+}
+
+/* Focus mode exit animation */
+.vn-character.focus-mode.char-exit {
+    animation: focusModeExit 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes focusModeExit {
+    from {
+        opacity: 1;
+        transform: translateX(-50%) scale(1) translateY(-5px);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-50%) scale(0.95) translateY(20px);
+    }
+}
+
 /* ============================================================
    LAYER 3: UI LAYER - Japanese Mobile Game Style (Genshin/FGO/Blue Archive)
    ============================================================ */
@@ -1736,6 +1801,11 @@ body.vn-active #result-card {
     }
     .vn-character.dimmed.position-right {
         transform: translateX(-50%) scale(0.82) translateY(8px);
+    }
+
+    /* Focus mode for mobile - slightly smaller but still impactful */
+    .vn-character.focus-mode .vn-sprite-img {
+        height: 75vh;
     }
 
     /* Dialogue box adjustments */

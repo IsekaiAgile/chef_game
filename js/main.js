@@ -26,6 +26,8 @@ class GameApp {
 
         // State flags
         this._isInitialized = false;
+        this._autoMode = false;
+        this._autoInterval = null;
     }
 
     /**
@@ -165,6 +167,15 @@ class GameApp {
             });
         }
 
+        // Auto button
+        const autoBtn = document.getElementById('vn-auto-btn');
+        if (autoBtn) {
+            autoBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._toggleAutoMode(autoBtn);
+            });
+        }
+
         // Restart buttons
         document.querySelectorAll('[data-restart]').forEach(btn => {
             btn.addEventListener('click', () => this.restart());
@@ -204,6 +215,41 @@ class GameApp {
                 state: this._gameState.getState()
             });
         });
+    }
+
+    /**
+     * Toggle auto-advance mode for dialogue
+     * @param {HTMLElement} btn - Auto button element
+     */
+    _toggleAutoMode(btn) {
+        this._autoMode = !this._autoMode;
+
+        if (btn) {
+            btn.classList.toggle('active', this._autoMode);
+        }
+
+        if (this._autoMode) {
+            this._startAutoAdvance();
+        } else {
+            this._stopAutoAdvance();
+        }
+    }
+
+    _startAutoAdvance() {
+        if (this._autoInterval) return;
+
+        this._autoInterval = setInterval(() => {
+            if (this._dialogueSystem.isActive() && !this._dialogueSystem.isTyping()) {
+                this._dialogueSystem.advance();
+            }
+        }, 2500); // Auto-advance every 2.5 seconds
+    }
+
+    _stopAutoAdvance() {
+        if (this._autoInterval) {
+            clearInterval(this._autoInterval);
+            this._autoInterval = null;
+        }
     }
 
     /**
@@ -247,6 +293,12 @@ class GameApp {
     restart() {
         // Reset state
         this._gameState.reset();
+
+        // Stop auto mode
+        this._stopAutoAdvance();
+        this._autoMode = false;
+        const autoBtn = document.getElementById('vn-auto-btn');
+        if (autoBtn) autoBtn.classList.remove('active');
 
         // Hide end screens
         const gameover = document.getElementById('gameover');

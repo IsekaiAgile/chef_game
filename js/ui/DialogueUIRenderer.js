@@ -78,17 +78,24 @@ class DialogueUIRenderer {
     _onDialogueAdvanced(data) {
         const { line, character, type } = data;
 
-        // Update speaker name
+        // Update speaker name (new structure with .name-text span)
         const speakerEl = this._getElement('speakerName');
         const dialogueBox = document.querySelector('.vn-dialogue-box');
 
         if (speakerEl && dialogueBox) {
+            const nameTextEl = speakerEl.querySelector('.name-text');
+
             if (line.speaker === 'narrator') {
                 dialogueBox.classList.add('narrator-mode');
-                speakerEl.textContent = '';
+                if (nameTextEl) nameTextEl.textContent = '';
             } else {
                 dialogueBox.classList.remove('narrator-mode');
-                speakerEl.textContent = character ? character.name : line.speaker;
+                const displayName = character ? character.name : line.speaker;
+                if (nameTextEl) {
+                    nameTextEl.textContent = displayName;
+                } else {
+                    speakerEl.textContent = displayName;
+                }
             }
         }
     }

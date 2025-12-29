@@ -180,16 +180,57 @@
                 </div>
             </div>
 
-            <!-- Layer 3: UI Layer (z-index: 100) -->
+            <!-- Layer 3: UI Layer (z-index: 100) - Japanese Mobile Game Style -->
             <div class="vn-ui-layer">
-                <button class="vn-skip-btn">スキップ ▶▶</button>
+                <!-- Corner Ornaments (Social Game Style) -->
+                <div class="vn-corner-ornament top-left"></div>
+                <div class="vn-corner-ornament top-right"></div>
+                <div class="vn-corner-ornament bottom-left"></div>
+                <div class="vn-corner-ornament bottom-right"></div>
+
+                <!-- Control Buttons (Pill-shaped with gloss) -->
+                <div class="vn-control-buttons">
+                    <button class="vn-control-btn vn-auto-btn" id="vn-auto-btn">
+                        <span class="btn-icon">▶</span>
+                        <span>AUTO</span>
+                    </button>
+                    <button class="vn-control-btn vn-skip-btn">
+                        <span class="btn-icon">▶▶</span>
+                        <span>SKIP</span>
+                    </button>
+                </div>
+
                 <div class="vn-scene-title" id="vn-scene-title"></div>
 
-                <!-- Dialogue Box - Always on top -->
+                <!-- Dialogue Box - Glassmorphism Style with Decorative Frame -->
                 <div class="vn-dialogue-box">
-                    <div id="vn-speaker" class="vn-speaker-name">???</div>
-                    <div id="vn-text" class="vn-dialogue-text"></div>
-                    <div class="vn-continue-hint">クリックで続く ▼</div>
+                    <!-- Decorative Frame -->
+                    <div class="vn-dialogue-frame">
+                        <div class="frame-corner tl"></div>
+                        <div class="frame-corner tr"></div>
+                        <div class="frame-corner bl"></div>
+                        <div class="frame-corner br"></div>
+                        <div class="frame-line top"></div>
+                        <div class="frame-line bottom"></div>
+                        <div class="frame-line left"></div>
+                        <div class="frame-line right"></div>
+                    </div>
+
+                    <!-- Name Tag Badge -->
+                    <div id="vn-speaker" class="vn-speaker-name">
+                        <span class="name-text">???</span>
+                        <div class="name-decoration"></div>
+                    </div>
+
+                    <!-- Dialogue Content -->
+                    <div class="vn-dialogue-content">
+                        <div id="vn-text" class="vn-dialogue-text"></div>
+                    </div>
+
+                    <!-- Click Indicator (Animated) -->
+                    <div class="vn-continue-indicator">
+                        <span class="indicator-arrow">▼</span>
+                    </div>
                 </div>
             </div>
         </div>

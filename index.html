@@ -60,6 +60,20 @@
                         <div id="growth-meter" class="meter-fill growth-fill"></div>
                     </div>
                 </div>
+
+                <!-- Balance Gauge: Tradition vs Innovation -->
+                <div class="meter-group balance-group">
+                    <div class="meter-label balance-label">
+                        <span class="tradition-label">伝統</span>
+                        <span class="balance-title">バランス</span>
+                        <span class="innovation-label">革新</span>
+                    </div>
+                    <div class="balance-bar">
+                        <div id="balance-indicator" class="balance-indicator"></div>
+                        <div class="balance-center-mark"></div>
+                    </div>
+                    <div id="balance-status" class="balance-status">調和を目指せ</div>
+                </div>
             </div>
 
             <div id="status-additional"></div>
@@ -92,6 +106,22 @@
             <div id="result"></div>
         </div>
 
+        <!-- Episode 1 Clear Screen -->
+        <div id="episode1-clear" class="hidden overlay-screen">
+            <div class="overlay-content episode-clear-screen">
+                <div class="episode-clear-badge">EPISODE 1 CLEAR</div>
+                <h2>革新の第一歩</h2>
+                <div class="chef-knife-icon">🔪</div>
+                <p class="episode-clear-text">老店主から古い包丁を受け取った！</p>
+                <p class="episode-clear-quote">「ワシは地図ばかり見て、客の顔を見ることを忘れておった。お前の『アジャイル』…それはワシが料理を始めた頃の心を思い出させてくれた。」</p>
+                <div class="episode-reward">
+                    <span class="reward-label">獲得アイテム</span>
+                    <span class="reward-item">🔪 老店主の包丁</span>
+                </div>
+                <button class="episode-continue-btn" onclick="startEpisode2()">第2話へ進む</button>
+            </div>
+        </div>
+
         <div id="ending" class="hidden overlay-screen">
             <div class="overlay-content victory-screen">
                 <h2>クリア！</h2>
@@ -115,6 +145,68 @@
                 <h2>今日のアジャイル格言</h2>
                 <p id="agile-tip-text"></p>
                 <button class="tip-close-btn" onclick="closeAgileTip()">なるほど！</button>
+            </div>
+        </div>
+
+        <!-- VN Dialogue System -->
+        <div id="vn-overlay" class="hidden">
+            <button class="vn-skip-btn" onclick="skipDialogue()">スキップ ▶▶</button>
+            <div class="vn-scene-title" id="vn-scene-title"></div>
+            <div class="vn-stage">
+                <div id="vn-char-left" class="vn-character">
+                    <img src="fuji1.jpg" alt="フジ" class="vn-sprite">
+                    <span class="vn-char-name">フジ</span>
+                </div>
+                <div id="vn-char-mina" class="vn-character vn-character-center hidden">
+                    <div class="vn-sprite mina-sprite">👧</div>
+                    <span class="vn-char-name mina-name">ミナ</span>
+                </div>
+                <div id="vn-char-right" class="vn-character">
+                    <div class="vn-sprite owner-sprite">👨‍🍳</div>
+                    <span class="vn-char-name">老店主</span>
+                </div>
+            </div>
+            <div class="vn-dialogue-box">
+                <div id="vn-speaker" class="vn-speaker-name">???</div>
+                <div id="vn-text" class="vn-dialogue-text"></div>
+                <div class="vn-continue-hint">クリックで続く ▼</div>
+            </div>
+        </div>
+
+        <!-- Player Choice Overlay -->
+        <div id="choice-overlay" class="hidden overlay-screen">
+            <div class="choice-content">
+                <div class="choice-header">
+                    <div class="choice-speaker">老店主</div>
+                    <div class="choice-question">「さあ、どうする？ワシの計画に従うか？」</div>
+                </div>
+                <div class="choice-buttons">
+                    <button class="choice-btn choice-a" onclick="selectChoiceA()">
+                        <span class="choice-icon">🙇</span>
+                        <span class="choice-text">
+                            <span class="choice-label">「はい！店主のご指導に従います！」</span>
+                            <span class="choice-effect">▶ 店主の機嫌 UP</span>
+                        </span>
+                    </button>
+                    <button class="choice-btn choice-b" onclick="selectChoiceB()">
+                        <span class="choice-icon">💡</span>
+                        <span class="choice-text">
+                            <span class="choice-label">「実は…イテレーティブなアプローチを…」</span>
+                            <span class="choice-effect">▶ 店主は怒るが、アジャイル成長 UP</span>
+                        </span>
+                    </button>
+                </div>
+                <div class="choice-hint">選択によってゲームの展開が変わります</div>
+            </div>
+        </div>
+
+        <!-- Mina Tip Modal -->
+        <div id="mina-tip-modal" class="hidden overlay-screen mina-overlay">
+            <div class="overlay-content mina-tip-screen">
+                <div class="mina-avatar">👧</div>
+                <div class="mina-name-label">ミナ</div>
+                <p id="mina-tip-text"></p>
+                <button class="mina-tip-close-btn" onclick="closeMinaTip()">ありがとう！</button>
             </div>
         </div>
     </div>

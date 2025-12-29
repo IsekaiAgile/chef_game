@@ -719,6 +719,20 @@ body {
     font-weight: 600;
 }
 
+/* ===== Game HUD Visibility Control ===== */
+/* Hide all game UI elements during VN sequences for 100% immersion */
+body.vn-active .game-header,
+body.vn-active .protagonist-section,
+body.vn-active #episode-card,
+body.vn-active #challenge-card,
+body.vn-active #status-card,
+body.vn-active #actions-card,
+body.vn-active #result-card {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+}
+
 /* ===== Overlay Screens ===== */
 .hidden {
     display: none !important;
@@ -810,97 +824,283 @@ body {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
-/* ===== VN Dialogue System ===== */
+/* ===== VN Dialogue System - Layered Structure ===== */
+/*
+ * Z-Index Layer Management (Professional VN Style):
+ * - Background Layer:   z-index: 1-2 (with crossfade support)
+ * - Inactive Character: z-index: 5
+ * - Active Character:   z-index: 10
+ * - UI Layer:           z-index: 100
+ */
+
 #vn-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
     z-index: 2000;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
+    overflow: hidden;
+    background: #000; /* Fallback black */
 }
 
 #vn-overlay.hidden {
     display: none !important;
 }
 
-.vn-stage {
-    flex: 1;
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    padding: 0 20px;
-    max-width: 800px;
-    margin: 0 auto;
-    width: 100%;
+/* === Layer 1: Background Image Layer (z-index: 1-2) === */
+.vn-background-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
 }
 
+.vn-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: opacity 0.8s ease-in-out;
+}
+
+#vn-bg-current {
+    z-index: 1;
+    opacity: 1;
+}
+
+#vn-bg-next {
+    z-index: 2;
+    opacity: 0;
+}
+
+/* Background Images */
+.vn-bg.bg-night-street {
+    background-image: url('食堂前夜.png');
+}
+
+.vn-bg.bg-diner {
+    background-image: url('食堂.png');
+}
+
+/* Fallback gradient backgrounds */
+.vn-bg.bg-road {
+    background: linear-gradient(180deg,
+        rgba(20, 25, 45, 1) 0%,
+        rgba(10, 15, 30, 1) 50%,
+        rgba(5, 10, 20, 1) 100%);
+}
+
+.vn-bg.bg-restaurant,
+.vn-bg.bg-kitchen {
+    background: linear-gradient(180deg,
+        rgba(50, 35, 25, 1) 0%,
+        rgba(30, 22, 18, 1) 100%);
+}
+
+/* Dark overlay for better character visibility */
+.vn-bg::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(180deg,
+        rgba(0, 0, 0, 0.3) 0%,
+        rgba(0, 0, 0, 0.1) 40%,
+        rgba(0, 0, 0, 0.4) 100%);
+    pointer-events: none;
+}
+
+/* Crossfade animation class */
+.vn-bg.fade-in {
+    opacity: 1;
+}
+
+.vn-bg.fade-out {
+    opacity: 0;
+}
+
+/* === Layer 2: Character Layer (z-index: 5-10) === */
+.vn-character-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 5;
+    pointer-events: none;
+}
+
+/* Character Container - Absolute positioned at bottom */
 .vn-character {
+    position: absolute;
+    bottom: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    transition: all 0.4s ease;
-    opacity: 0.5;
-    filter: brightness(0.6);
-    transform: scale(0.95);
+    justify-content: flex-end;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: 5; /* Inactive state */
 }
 
+/* Character positioning - Fixed positions */
+.vn-character.position-left {
+    left: 5%;
+}
+
+.vn-character.position-center-left {
+    left: 30%;
+}
+
+.vn-character.position-center {
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.vn-character.position-right {
+    right: 5%;
+}
+
+/* Character sprite image - Max Impact Size for transparent PNGs */
+.vn-sprite-img {
+    display: block;
+    height: 85vh;
+    width: auto;
+    object-fit: contain;
+    object-position: bottom center;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* === Character States (Optimized for Transparent PNGs) === */
+
+/* Default/Inactive state - Slightly dimmed */
+.vn-character {
+    opacity: 1;
+    filter: brightness(0.6) saturate(0.7) contrast(0.9);
+    transform: scale(0.92) translateY(0);
+}
+
+/* Speaking/Active state - Full brightness with glow */
 .vn-character.speaking {
     opacity: 1;
-    filter: brightness(1);
-    transform: scale(1);
+    filter: brightness(1) saturate(1.05) contrast(1);
+    transform: scale(1) translateY(-15px);
+    z-index: 10; /* Active state - in front */
 }
 
+.vn-character.speaking .vn-sprite-img {
+    filter: drop-shadow(0 15px 50px rgba(0, 0, 0, 0.7))
+            drop-shadow(0 0 30px rgba(244, 164, 96, 0.4))
+            drop-shadow(0 5px 15px rgba(244, 164, 96, 0.2));
+}
+
+/* Dimmed state (explicit) - Push to background */
+.vn-character.dimmed {
+    opacity: 1;
+    filter: brightness(0.35) saturate(0.4) contrast(0.85);
+    transform: scale(0.85) translateY(15px);
+    z-index: 5;
+}
+
+/* Hidden state */
 .vn-character.hidden {
     opacity: 0;
-    transform: translateY(20px) scale(0.9);
+    transform: scale(0.8) translateY(50px);
+    pointer-events: none;
+    visibility: hidden;
 }
 
-.vn-sprite {
-    width: 150px;
-    height: 200px;
-    object-fit: cover;
-    object-position: top;
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+/* Character enter animation */
+.vn-character.char-enter {
+    animation: charEnter 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
-.vn-sprite.owner-sprite {
-    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 4em;
+@keyframes charEnter {
+    from {
+        opacity: 0;
+        filter: brightness(0) saturate(0);
+        transform: scale(0.8) translateY(60px);
+    }
+    to {
+        opacity: 1;
+        filter: brightness(0.6) saturate(0.7) contrast(0.9);
+        transform: scale(0.92) translateY(0);
+    }
 }
 
-.vn-char-name {
-    margin-top: 8px;
-    padding: 4px 16px;
-    background: rgba(0, 0, 0, 0.7);
+/* === Layer 3: UI Layer (z-index: 100) === */
+.vn-ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    pointer-events: none;
+}
+
+.vn-ui-layer > * {
+    pointer-events: auto;
+}
+
+/* Scene Title */
+.vn-scene-title {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 24px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--accent-gold);
     border-radius: 20px;
-    font-size: 0.85em;
+    font-size: 0.95em;
     font-weight: 700;
+    color: var(--accent-gold);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+/* Skip Button */
+.vn-skip-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-muted);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.8em;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.vn-skip-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
     color: var(--text-primary);
 }
 
-#vn-char-left .vn-char-name {
-    color: var(--accent-gold);
-}
-
-#vn-char-right .vn-char-name {
-    color: var(--accent-primary);
-}
-
+/* Dialogue Box - Always on top (z-index: 100) */
 .vn-dialogue-box {
-    background: linear-gradient(180deg, rgba(22, 33, 62, 0.95) 0%, rgba(26, 26, 46, 0.98) 100%);
-    border-top: 2px solid var(--accent-gold);
-    padding: 20px;
-    min-height: 150px;
-    position: relative;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(180deg, rgba(15, 20, 35, 0.97) 0%, rgba(10, 12, 20, 0.99) 100%);
+    border-top: 3px solid var(--accent-gold);
+    padding: 25px 30px 20px;
+    min-height: 160px;
+    max-height: 35vh;
+    box-shadow: 0 -10px 50px rgba(0, 0, 0, 0.7);
 }
 
 .vn-speaker-name {
@@ -945,25 +1145,6 @@ body {
 @keyframes bounce-hint {
     0%, 100% { transform: translateY(0); opacity: 0.6; }
     50% { transform: translateY(-5px); opacity: 1; }
-}
-
-.vn-skip-btn {
-    position: absolute;
-    top: 15px;
-    right: 20px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: var(--text-muted);
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 0.75em;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.vn-skip-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    color: var(--text-primary);
 }
 
 /* Event dialogue specific */
@@ -1036,143 +1217,54 @@ body {
     }
 }
 
-/* VN Responsive */
+/* VN Responsive - Small Screens */
 @media screen and (max-width: 500px) {
-    .vn-sprite {
-        width: 100px;
-        height: 140px;
+    .vn-sprite-img {
+        height: 70vh;
+    }
+
+    .vn-dialogue-box {
+        min-height: 130px;
+        padding: 20px 15px 15px;
+    }
+
+    .vn-dialogue-text {
+        font-size: 0.9em;
+    }
+
+    .vn-character.position-left {
+        left: 0%;
+    }
+
+    .vn-character.position-center-left {
+        left: 25%;
+    }
+
+    .vn-character.position-right {
+        right: 0%;
+    }
+
+    .vn-skip-btn {
+        padding: 6px 10px;
+        font-size: 0.7em;
+    }
+}
+
+/* VN Responsive - Short Screens */
+@media screen and (max-height: 600px) {
+    .vn-sprite-img {
+        height: 60vh;
     }
 
     .vn-dialogue-box {
         min-height: 120px;
-        padding: 15px;
-    }
-
-    .vn-dialogue-text {
-        font-size: 0.95em;
-    }
-
-    .vn-char-name {
-        font-size: 0.7em;
-        padding: 3px 10px;
+        max-height: 40vh;
     }
 }
 
-@media screen and (max-height: 500px) {
-    .vn-sprite {
-        width: 80px;
-        height: 100px;
-    }
-
-    .vn-dialogue-box {
-        min-height: 100px;
-    }
-}
-
-/* ===== Scene Backgrounds ===== */
-#vn-overlay.scene-road {
-    background: linear-gradient(180deg,
-        rgba(60, 60, 80, 0.9) 0%,
-        rgba(30, 30, 50, 0.95) 100%);
-}
-
-#vn-overlay.scene-road::before {
-    content: '🌙';
-    position: absolute;
-    top: 50px;
-    right: 80px;
-    font-size: 3em;
-    opacity: 0.6;
-}
-
-#vn-overlay.scene-rescue {
-    background: linear-gradient(180deg,
-        rgba(80, 70, 60, 0.9) 0%,
-        rgba(50, 40, 35, 0.95) 100%);
-}
-
-#vn-overlay.scene-restaurant {
-    background: linear-gradient(180deg,
-        rgba(40, 30, 25, 0.9) 0%,
-        rgba(25, 20, 18, 0.95) 100%);
-}
-
-#vn-overlay.scene-restaurant::before {
-    content: '🏮';
-    position: absolute;
-    top: 40px;
-    left: 60px;
-    font-size: 2.5em;
-    opacity: 0.7;
-    animation: lanternGlow 2s ease-in-out infinite;
-}
-
-@keyframes lanternGlow {
-    0%, 100% { opacity: 0.5; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.1); }
-}
-
-/* Scene Title */
-.vn-scene-title {
-    position: absolute;
-    top: 60px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 8px 24px;
-    background: rgba(0, 0, 0, 0.6);
-    border: 1px solid var(--accent-gold);
-    border-radius: 20px;
-    font-size: 0.9em;
-    color: var(--accent-gold);
-    font-weight: 600;
-    z-index: 10;
-}
-
-/* ===== Mina Character ===== */
-.mina-sprite {
-    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 4em;
-    width: 150px;
-    height: 200px;
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-}
-
-.mina-name {
-    color: #ff6b9d !important;
-}
-
-/* Mina positioning - center of stage */
-#vn-char-mina {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 5;
-}
-
-#vn-char-mina.speaking {
-    transform: translateX(-50%) scale(1);
-    filter: brightness(1);
-    opacity: 1;
-}
-
-#vn-char-mina .vn-char-name {
-    color: #ff6b9d;
-    background: rgba(255, 107, 157, 0.2);
-}
-
-/* VN Stage adjustments for 3 characters */
-.vn-stage {
-    position: relative;
-}
-
-/* Character visibility */
-.vn-character.hidden {
-    display: none !important;
-}
+/* ===== Scene Backgrounds - Now handled by .vn-bg layer ===== */
+/* Background images: 食堂前夜.png (night-street), 食堂.png (diner) */
+/* See .vn-bg classes above for background image definitions */
 
 /* ===== Choice Overlay ===== */
 #choice-overlay {
@@ -1300,10 +1392,16 @@ body {
     max-width: 350px;
 }
 
-.mina-avatar {
-    font-size: 4em;
+.mina-avatar-img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: top;
+    border: 3px solid #ff6b9d;
     margin-bottom: 10px;
     animation: minaFloat 2s ease-in-out infinite;
+    box-shadow: 0 4px 15px rgba(255, 107, 157, 0.3);
 }
 
 @keyframes minaFloat {
@@ -1373,4 +1471,52 @@ body {
     .choice-question {
         font-size: 1em;
     }
+}
+
+/* ===== Mina Helper Button ===== */
+.mina-helper {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.mina-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #ff6b9d, #ff9a9e);
+    border: none;
+    border-radius: 25px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.9em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(255, 107, 157, 0.3);
+}
+
+.mina-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 107, 157, 0.5);
+}
+
+.mina-btn:active {
+    transform: translateY(0);
+}
+
+.mina-icon {
+    font-size: 1.3em;
+}
+
+.mina-btn-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: top;
+    border: 2px solid rgba(255, 255, 255, 0.5);
 }

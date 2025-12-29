@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
-<body onload="initializeGame()">
+<body>
     <div id="game-container">
         <header class="game-header">
             <h1>ネコノヒゲ：アジャイル厨房</h1>
@@ -79,6 +79,13 @@
             <div id="status-additional"></div>
 
             <div id="combo-display"></div>
+
+            <div class="mina-helper">
+                <button id="mina-tip-btn" class="mina-btn">
+                    <img src="ミナ.jpg" alt="ミナ" class="mina-btn-icon">
+                    <span>ミナに聞く</span>
+                </button>
+            </div>
         </div>
 
         <div class="card" id="actions-card">
@@ -86,15 +93,15 @@
                 <h2>今日のスプリント</h2>
                 <p class="actions-hint">毎日違うアクションを試そう！</p>
                 <div class="action-buttons">
-                    <button class="action-btn tasting" onclick="runAction(1)">
+                    <button class="action-btn tasting" data-action="1">
                         <span class="btn-icon">🍳</span>
                         <span class="btn-text">イテレーション試食</span>
                     </button>
-                    <button class="action-btn cicd" onclick="runAction(2)">
+                    <button class="action-btn cicd" data-action="2">
                         <span class="btn-icon">🔧</span>
                         <span class="btn-text">CI/CDメンテナンス</span>
                     </button>
-                    <button class="action-btn feedback" onclick="runAction(3)">
+                    <button class="action-btn feedback" data-action="3">
                         <span class="btn-icon">👥</span>
                         <span class="btn-text">ユーザーの声を聴く</span>
                     </button>
@@ -118,7 +125,7 @@
                     <span class="reward-label">獲得アイテム</span>
                     <span class="reward-item">🔪 老店主の包丁</span>
                 </div>
-                <button class="episode-continue-btn" onclick="startEpisode2()">第2話へ進む</button>
+                <button class="episode-continue-btn" id="continue-ep2">第2話へ進む</button>
             </div>
         </div>
 
@@ -127,7 +134,7 @@
                 <h2>クリア！</h2>
                 <p class="victory-text">あなたの継続的な実験が厨房を変革した！</p>
                 <p class="victory-quote">「お前がこの食堂を救ったプロセス…それがアジャイルだ！」</p>
-                <button class="restart-btn" onclick="location.reload()">もう一度遊ぶ</button>
+                <button class="restart-btn" data-restart>もう一度遊ぶ</button>
             </div>
         </div>
 
@@ -136,7 +143,7 @@
                 <h2>閉店…</h2>
                 <p>停滞と技術的負債が厨房を圧倒した…</p>
                 <p class="gameover-quote">「なぜだ…何かが間違っていたはず。次こそ答えを見つける！」</p>
-                <button class="restart-btn" onclick="location.reload()">再挑戦</button>
+                <button class="restart-btn" data-restart>再挑戦</button>
             </div>
         </div>
 
@@ -144,32 +151,46 @@
             <div class="overlay-content tip-screen">
                 <h2>今日のアジャイル格言</h2>
                 <p id="agile-tip-text"></p>
-                <button class="tip-close-btn" onclick="closeAgileTip()">なるほど！</button>
+                <button class="tip-close-btn" id="agile-tip-close">なるほど！</button>
             </div>
         </div>
 
-        <!-- VN Dialogue System -->
+        <!-- VN Dialogue System - Layer Structure (SOLID: Separated Layers) -->
         <div id="vn-overlay" class="hidden">
-            <button class="vn-skip-btn" onclick="skipDialogue()">スキップ ▶▶</button>
-            <div class="vn-scene-title" id="vn-scene-title"></div>
-            <div class="vn-stage">
-                <div id="vn-char-left" class="vn-character">
-                    <img src="fuji1.jpg" alt="フジ" class="vn-sprite">
-                    <span class="vn-char-name">フジ</span>
+
+            <!-- Layer 1: Background Image Layer (z-index: 1-2) -->
+            <div class="vn-background-layer">
+                <div id="vn-bg-current" class="vn-bg"></div>
+                <div id="vn-bg-next" class="vn-bg"></div>
+            </div>
+
+            <!-- Layer 2: Character Layer (z-index: 5-10) -->
+            <div class="vn-character-layer">
+                <!-- Left: Mina (transparent PNG) -->
+                <div id="vn-char-mina" class="vn-character position-left hidden">
+                    <img src="ミナ.png" alt="ミナ" class="vn-sprite-img">
                 </div>
-                <div id="vn-char-mina" class="vn-character vn-character-center hidden">
-                    <div class="vn-sprite mina-sprite">👧</div>
-                    <span class="vn-char-name mina-name">ミナ</span>
+                <!-- Center-Left: Fuji -->
+                <div id="vn-char-fuji" class="vn-character position-center-left hidden">
+                    <img src="fuji1.jpg" alt="フジ" class="vn-sprite-img">
                 </div>
-                <div id="vn-char-right" class="vn-character">
-                    <div class="vn-sprite owner-sprite">👨‍🍳</div>
-                    <span class="vn-char-name">老店主</span>
+                <!-- Right: Owner (transparent PNG) -->
+                <div id="vn-char-owner" class="vn-character position-right hidden">
+                    <img src="親父.png" alt="老店主" class="vn-sprite-img">
                 </div>
             </div>
-            <div class="vn-dialogue-box">
-                <div id="vn-speaker" class="vn-speaker-name">???</div>
-                <div id="vn-text" class="vn-dialogue-text"></div>
-                <div class="vn-continue-hint">クリックで続く ▼</div>
+
+            <!-- Layer 3: UI Layer (z-index: 100) -->
+            <div class="vn-ui-layer">
+                <button class="vn-skip-btn">スキップ ▶▶</button>
+                <div class="vn-scene-title" id="vn-scene-title"></div>
+
+                <!-- Dialogue Box - Always on top -->
+                <div class="vn-dialogue-box">
+                    <div id="vn-speaker" class="vn-speaker-name">???</div>
+                    <div id="vn-text" class="vn-dialogue-text"></div>
+                    <div class="vn-continue-hint">クリックで続く ▼</div>
+                </div>
             </div>
         </div>
 
@@ -181,14 +202,14 @@
                     <div class="choice-question">「さあ、どうする？ワシの計画に従うか？」</div>
                 </div>
                 <div class="choice-buttons">
-                    <button class="choice-btn choice-a" onclick="selectChoiceA()">
+                    <button class="choice-btn choice-a" id="choice-a">
                         <span class="choice-icon">🙇</span>
                         <span class="choice-text">
                             <span class="choice-label">「はい！店主のご指導に従います！」</span>
                             <span class="choice-effect">▶ 店主の機嫌 UP</span>
                         </span>
                     </button>
-                    <button class="choice-btn choice-b" onclick="selectChoiceB()">
+                    <button class="choice-btn choice-b" id="choice-b">
                         <span class="choice-icon">💡</span>
                         <span class="choice-text">
                             <span class="choice-label">「実は…イテレーティブなアプローチを…」</span>
@@ -203,14 +224,29 @@
         <!-- Mina Tip Modal -->
         <div id="mina-tip-modal" class="hidden overlay-screen mina-overlay">
             <div class="overlay-content mina-tip-screen">
-                <div class="mina-avatar">👧</div>
+                <img src="ミナ.jpg" alt="ミナ" class="mina-avatar-img">
                 <div class="mina-name-label">ミナ</div>
                 <p id="mina-tip-text"></p>
-                <button class="mina-tip-close-btn" onclick="closeMinaTip()">ありがとう！</button>
+                <button class="mina-tip-close-btn" id="mina-tip-close">ありがとう！</button>
             </div>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Core modules (load order matters) -->
+    <script src="js/core/EventBus.js"></script>
+    <script src="js/core/GameState.js"></script>
+
+    <!-- Systems -->
+    <script src="js/systems/DialogueSystem.js"></script>
+    <script src="js/systems/KitchenEngine.js"></script>
+    <script src="js/systems/EpisodeManager.js"></script>
+
+    <!-- UI Renderers -->
+    <script src="js/ui/CharacterDisplay.js"></script>
+    <script src="js/ui/DialogueUIRenderer.js"></script>
+    <script src="js/ui/GameUIRenderer.js"></script>
+
+    <!-- Main entry point -->
+    <script src="js/main.js"></script>
 </body>
 </html>

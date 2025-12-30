@@ -101,8 +101,11 @@ class DialogueUIRenderer {
     }
 
     _onDialogueCompleted(data) {
-        // Dialogue completion is handled by the callback system
-        // Don't auto-hide overlay here
+        // For event dialogues (perfect, crisis, hybrid), auto-hide the VN overlay
+        // Intro dialogues are handled by their own callback system
+        if (data.type === 'event' || data.type === 'perfect' || data.type === 'crisis' || data.type === 'hybrid') {
+            this.hideOverlay();
+        }
     }
 
     _onTyping(data) {
@@ -263,12 +266,36 @@ class DialogueUIRenderer {
      * @param {Function} advanceCallback - Function to call on click
      */
     setupClickHandler(advanceCallback) {
+        // Use the dedicated click layer for reliable click handling
+        const clickLayer = document.getElementById('vn-click-layer');
         const overlay = this._getElement('overlay');
+
+        // Primary: Click layer (covers entire VN overlay)
+        if (clickLayer) {
+            clickLayer.addEventListener('click', (e) => {
+                e.stopPropagation();
+                advanceCallback();
+            });
+        }
+
+        // Fallback: Also attach to overlay itself
         if (overlay) {
             overlay.addEventListener('click', (e) => {
                 // Don't advance on skip button click or if clicking on buttons
                 if (e.target.classList.contains('vn-skip-btn')) return;
+                if (e.target.classList.contains('vn-auto-btn')) return;
+                if (e.target.classList.contains('vn-control-btn')) return;
                 if (e.target.tagName === 'BUTTON') return;
+                if (e.target.closest('.vn-control-buttons')) return;
+                advanceCallback();
+            });
+        }
+
+        // Also attach to dialogue box for extra safety
+        const dialogueBox = document.querySelector('.vn-dialogue-box');
+        if (dialogueBox) {
+            dialogueBox.addEventListener('click', (e) => {
+                e.stopPropagation();
                 advanceCallback();
             });
         }

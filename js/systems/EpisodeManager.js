@@ -305,6 +305,8 @@ class EpisodeManager {
     _playEventDialogue(sceneId) {
         const scene = this._sceneData.get(sceneId);
         if (scene) {
+            // DialogueSystem.start() will emit DIALOGUE_STARTED
+            // DialogueUIRenderer will show the overlay and handle clicks
             this._dialogueSystem.start(scene, 'event');
         }
     }

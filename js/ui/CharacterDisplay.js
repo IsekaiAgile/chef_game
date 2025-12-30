@@ -64,11 +64,19 @@ class CharacterDisplay {
     }
 
     _registerDefaultCharacters() {
+        // === IMAGE PATH CONSTANTS ===
+        // Define all character sprites in one place to prevent path errors
+        const SPRITES = {
+            FUJI: 'fuji1.png',
+            MINA: 'ミナ.png',
+            OWNER: '親父.png'
+        };
+
         // Fuji - Main character (center-left position)
         this.registerCharacter({
             id: 'fuji',
             name: 'フジ',
-            image: 'fuji1.jpg',
+            image: SPRITES.FUJI,
             position: 'center-left',
             elementId: 'vn-char-fuji'
         });
@@ -77,7 +85,7 @@ class CharacterDisplay {
         this.registerCharacter({
             id: 'mina',
             name: 'ミナ',
-            image: 'ミナ.png',
+            image: SPRITES.MINA,
             position: 'left',
             elementId: 'vn-char-mina'
         });
@@ -86,7 +94,7 @@ class CharacterDisplay {
         this.registerCharacter({
             id: 'owner',
             name: '老店主',
-            image: '親父.png',
+            image: SPRITES.OWNER,
             position: 'right',
             elementId: 'vn-char-owner'
         });

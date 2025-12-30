@@ -2,234 +2,259 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>ネコノヒゲ：アジャイル厨房</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- ===== PAWAPURO SUCCESS MODE LAYOUT ===== -->
     <div id="game-container">
-        <header class="game-header">
-            <h1>ネコノヒゲ：アジャイル厨房</h1>
-            <p class="subtitle">異世界食堂で学ぶアジャイルマインド</p>
-        </header>
 
-        <div class="protagonist-section">
-            <div id="protagonist-area">
-                <img id="fuji-image" src="fuji1.jpg" alt="フジ">
-                <div class="protagonist-name">フジ</div>
+        <!-- LAYER 0: Full-Screen Background -->
+        <div class="pawa-bg-layer">
+            <img src="食堂.png" alt="Kitchen Background" class="pawa-bg-image">
+            <div class="pawa-bg-overlay"></div>
+        </div>
+
+        <!-- Floating Text Container (for +5, -3 effects) -->
+        <div id="floating-text-container"></div>
+
+        <!-- LAYER 1: Top HUD Bar (Sprint/Day) -->
+        <div class="pawa-top-hud">
+            <div class="hud-block hud-sprint">
+                <span class="hud-label">SPRINT</span>
+                <span class="hud-value" id="episode-num">1</span>
             </div>
-            <div id="message" class="message">老店主：「レシピ通りにやれ。余計なことは考えるな！」</div>
+            <div class="hud-block hud-day">
+                <span class="hud-label">DAY</span>
+                <span class="hud-value" id="day">1</span>
+            </div>
+            <div class="hud-title-block">
+                <span class="hud-title" id="episode-title">ネコノヒゲ亭</span>
+            </div>
         </div>
 
-        <div class="card" id="episode-card">
-            <div id="episode-status"></div>
-        </div>
-
-        <div class="card" id="challenge-card">
-            <div id="todays-challenge"></div>
-        </div>
-
-        <div class="card" id="status-card">
-            <div class="meters-section">
-                <div class="meter-group">
-                    <div class="meter-label">
-                        <span>日数</span>
-                        <span id="day">1</span>
+        <!-- LAYER 2: Central Hero Character (Fuji) - 80vh tall -->
+        <div class="pawa-hero-layer" id="status-card">
+            <div class="hero-container">
+                <img id="fuji-image" src="fuji1.png" alt="フジ" class="hero-sprite">
+                <!-- Floating Status Badges around hero -->
+                <div class="hero-badges">
+                    <div class="hero-badge badge-quality">
+                        <span class="badge-icon">&#x2728;</span>
+                        <span class="badge-label">品質</span>
+                        <span class="badge-value" id="quality-val">50</span>
                     </div>
-                </div>
-
-                <div class="meter-group">
-                    <div class="meter-label">
-                        <span>停滞度</span>
-                        <span><span id="stagnation-val">50</span>%</span>
+                    <div class="hero-badge badge-ingredients">
+                        <span class="badge-icon">&#x1F955;</span>
+                        <span class="badge-label">食材</span>
+                        <span class="badge-value" id="ingredients-val">3</span>
                     </div>
-                    <div class="meter-bar stagnation-bar">
-                        <div id="stagnation-meter" class="meter-fill stagnation-fill"></div>
+                    <div class="hero-badge badge-debt">
+                        <span class="badge-icon">&#x26A1;</span>
+                        <span class="badge-label">負債</span>
+                        <span class="badge-value" id="debt-val">0</span>
                     </div>
-                </div>
-
-                <div class="meter-group">
-                    <div class="meter-label">
-                        <span>成長度</span>
-                        <span><span id="growth-val">0</span>/50</span>
-                    </div>
-                    <div class="meter-bar growth-bar">
-                        <div id="growth-meter" class="meter-fill growth-fill"></div>
-                    </div>
-                </div>
-
-                <!-- Balance Gauge: Tradition vs Innovation -->
-                <div class="meter-group balance-group">
-                    <div class="meter-label balance-label">
-                        <span class="tradition-label">伝統</span>
-                        <span class="balance-title">バランス</span>
-                        <span class="innovation-label">革新</span>
-                    </div>
-                    <div class="balance-bar">
-                        <div id="balance-indicator" class="balance-indicator"></div>
-                        <div class="balance-center-mark"></div>
-                    </div>
-                    <div id="balance-status" class="balance-status">調和を目指せ</div>
                 </div>
             </div>
+        </div>
 
-            <div id="status-additional"></div>
-
-            <div id="combo-display"></div>
-
-            <div class="mina-helper">
-                <button id="mina-tip-btn" class="mina-btn">
-                    <img src="ミナ.jpg" alt="ミナ" class="mina-btn-icon">
-                    <span>ミナに聞く</span>
+        <!-- LAYER 3: Oblique Command Menu (Upper Third) -->
+        <div class="pawa-command-menu" id="actions-card">
+            <div id="actions" class="command-row">
+                <button class="pawa-cmd-btn cmd-orange" data-action="1">
+                    <span class="cmd-icon">&#x1F373;</span>
+                    <span class="cmd-label">調理</span>
+                </button>
+                <button class="pawa-cmd-btn cmd-blue" data-action="2">
+                    <span class="cmd-icon">&#x1F527;</span>
+                    <span class="cmd-label">分析</span>
+                </button>
+                <button class="pawa-cmd-btn cmd-green" data-action="3">
+                    <span class="cmd-icon">&#x1F465;</span>
+                    <span class="cmd-label">対話</span>
+                </button>
+                <button class="pawa-cmd-btn cmd-pink" id="mina-tip-btn">
+                    <span class="cmd-icon">&#x1F4A1;</span>
+                    <span class="cmd-label">休憩</span>
                 </button>
             </div>
         </div>
 
-        <div class="card" id="actions-card">
-            <div id="actions">
-                <h2>今日のスプリント</h2>
-                <p class="actions-hint">毎日違うアクションを試そう！</p>
-                <div class="action-buttons">
-                    <button class="action-btn tasting" data-action="1">
-                        <span class="btn-icon">🍳</span>
-                        <span class="btn-text">イテレーション試食</span>
-                    </button>
-                    <button class="action-btn cicd" data-action="2">
-                        <span class="btn-icon">🔧</span>
-                        <span class="btn-text">CI/CDメンテナンス</span>
-                    </button>
-                    <button class="action-btn feedback" data-action="3">
-                        <span class="btn-icon">👥</span>
-                        <span class="btn-text">ユーザーの声を聴く</span>
-                    </button>
+        <!-- LAYER 4: Floating Cycle Display -->
+        <div class="pawa-cycle-float" id="combo-display">
+            <div class="cycle-header">
+                <span class="cycle-icon">&#x1F504;</span>
+                <span class="cycle-title">サイクル</span>
+            </div>
+            <div class="cycle-slots">
+                <div class="cycle-slot empty">?</div>
+                <div class="cycle-slot empty">?</div>
+                <div class="cycle-slot empty">?</div>
+            </div>
+            <div class="cycle-hint" id="cycle-hint"></div>
+        </div>
+
+        <!-- LAYER 5: Floating Balance Bar -->
+        <div class="pawa-balance-float">
+            <span class="bal-label">伝統</span>
+            <div class="bal-track">
+                <div class="bal-fill" id="balance-indicator"></div>
+                <div class="bal-center"></div>
+            </div>
+            <span class="bal-label">革新</span>
+        </div>
+
+        <!-- LAYER 6: Bottom Console HUD -->
+        <div class="pawa-bottom-hud">
+            <!-- Energy/Growth Gauge -->
+            <div class="hud-gauge-block">
+                <span class="gauge-label">成長</span>
+                <div class="gauge-track">
+                    <div class="gauge-fill growth-fill" id="growth-meter"></div>
                 </div>
+                <span class="gauge-value" id="growth-val">0</span>
+            </div>
+            <!-- Reputation Gauge -->
+            <div class="hud-gauge-block">
+                <span class="gauge-label">評判</span>
+                <div class="gauge-track">
+                    <div class="gauge-fill reputation-fill" id="reputation-meter"></div>
+                </div>
+                <span class="gauge-value" id="mood-val">50</span>
+            </div>
+            <!-- Stagnation Warning -->
+            <div class="hud-stagnation" id="stagnation-warning">
+                <span class="stag-icon">&#x26A0;</span>
+                <span class="stag-text">停滞 <span id="stagnation-val">0</span>%</span>
             </div>
         </div>
 
-        <div class="card" id="result-card">
+        <!-- LAYER 7: Dialogue Window (Overlapping Hero's Feet) -->
+        <div class="pawa-dialogue-box" id="challenge-card">
+            <div class="dialogue-nameplate" id="speaker-name">老店主</div>
+            <div class="dialogue-content">
+                <p class="dialogue-text" id="message">レシピ通りにやれ。余計なことは考えるな！</p>
+            </div>
+            <div class="dialogue-indicator">&#x25BC;</div>
+        </div>
+
+        <!-- LAYER 8: Result Panel (Floating) -->
+        <div class="pawa-result-panel" id="result-card">
             <div id="result"></div>
         </div>
 
+        <!-- Hidden legacy elements for compatibility -->
+        <div id="episode-card" class="hidden">
+            <div id="episode-status"></div>
+        </div>
+        <div id="status-additional" class="hidden"></div>
+        <div id="todays-challenge" class="hidden"></div>
+        <div id="balance-status" class="hidden"></div>
+
+        <!-- ===== OVERLAY SCREENS ===== -->
+
         <!-- Episode 1 Clear Screen -->
         <div id="episode1-clear" class="hidden overlay-screen">
-            <div class="overlay-content episode-clear-screen">
-                <div class="episode-clear-badge">EPISODE 1 CLEAR</div>
+            <div class="overlay-content episode-clear-content">
+                <div class="clear-badge">EPISODE 1 CLEAR</div>
                 <h2>革新の第一歩</h2>
-                <div class="chef-knife-icon">🔪</div>
-                <p class="episode-clear-text">老店主から古い包丁を受け取った！</p>
-                <p class="episode-clear-quote">「ワシは地図ばかり見て、客の顔を見ることを忘れておった。お前の『アジャイル』…それはワシが料理を始めた頃の心を思い出させてくれた。」</p>
-                <div class="episode-reward">
+                <div class="clear-icon">&#x1F52A;</div>
+                <p class="clear-text">老店主から古い包丁を受け取った！</p>
+                <p class="clear-quote">「ワシは地図ばかり見て、客の顔を見ることを忘れておった。お前の『アジャイル』…それはワシが料理を始めた頃の心を思い出させてくれた。」</p>
+                <div class="clear-reward">
                     <span class="reward-label">獲得アイテム</span>
-                    <span class="reward-item">🔪 老店主の包丁</span>
+                    <span class="reward-item">&#x1F52A; 老店主の包丁</span>
                 </div>
-                <button class="episode-continue-btn" id="continue-ep2">第2話へ進む</button>
+                <button class="pawa-btn-primary" id="continue-ep2">第2話へ進む</button>
             </div>
         </div>
 
         <div id="ending" class="hidden overlay-screen">
-            <div class="overlay-content victory-screen">
+            <div class="overlay-content victory-content">
                 <h2>クリア！</h2>
                 <p class="victory-text">あなたの継続的な実験が厨房を変革した！</p>
                 <p class="victory-quote">「お前がこの食堂を救ったプロセス…それがアジャイルだ！」</p>
-                <button class="restart-btn" data-restart>もう一度遊ぶ</button>
+                <button class="pawa-btn-primary" data-restart>もう一度遊ぶ</button>
             </div>
         </div>
 
         <div id="gameover" class="hidden overlay-screen">
-            <div class="overlay-content gameover-screen">
+            <div class="overlay-content gameover-content">
                 <h2>閉店…</h2>
                 <p>停滞と技術的負債が厨房を圧倒した…</p>
                 <p class="gameover-quote">「なぜだ…何かが間違っていたはず。次こそ答えを見つける！」</p>
-                <button class="restart-btn" data-restart>再挑戦</button>
+                <button class="pawa-btn-primary" data-restart>再挑戦</button>
             </div>
         </div>
 
         <div id="agile-tip-modal" class="hidden overlay-screen">
-            <div class="overlay-content tip-screen">
+            <div class="overlay-content tip-content">
                 <h2>今日のアジャイル格言</h2>
                 <p id="agile-tip-text"></p>
-                <button class="tip-close-btn" id="agile-tip-close">なるほど！</button>
+                <button class="pawa-btn-primary" id="agile-tip-close">なるほど！</button>
             </div>
         </div>
 
-        <!-- VN Dialogue System - Layer Structure (SOLID: Separated Layers) -->
+        <!-- ===== VN DIALOGUE SYSTEM ===== -->
         <div id="vn-overlay" class="hidden">
+            <!-- CLICK LAYER: Transparent layer that captures ALL clicks to advance dialogue -->
+            <div id="vn-click-layer" class="vn-click-layer"></div>
 
-            <!-- Layer 1: Background Image Layer (z-index: 1-2) -->
             <div class="vn-background-layer">
                 <div id="vn-bg-current" class="vn-bg"></div>
                 <div id="vn-bg-next" class="vn-bg"></div>
             </div>
 
-            <!-- Layer 2: Character Layer (z-index: 5-10) -->
             <div class="vn-character-layer">
-                <!-- Left: Mina (transparent PNG) -->
                 <div id="vn-char-mina" class="vn-character position-left hidden">
                     <img src="ミナ.png" alt="ミナ" class="vn-sprite-img">
                 </div>
-                <!-- Center-Left: Fuji -->
                 <div id="vn-char-fuji" class="vn-character position-center-left hidden">
-                    <img src="fuji1.jpg" alt="フジ" class="vn-sprite-img">
+                    <img src="fuji1.png" alt="フジ" class="vn-sprite-img">
                 </div>
-                <!-- Right: Owner (transparent PNG) -->
                 <div id="vn-char-owner" class="vn-character position-right hidden">
                     <img src="親父.png" alt="老店主" class="vn-sprite-img">
                 </div>
             </div>
 
-            <!-- Layer 3: UI Layer (z-index: 100) - Japanese Mobile Game Style -->
             <div class="vn-ui-layer">
-                <!-- Corner Ornaments (Social Game Style) -->
                 <div class="vn-corner-ornament top-left"></div>
                 <div class="vn-corner-ornament top-right"></div>
                 <div class="vn-corner-ornament bottom-left"></div>
                 <div class="vn-corner-ornament bottom-right"></div>
 
-                <!-- Control Buttons (Pill-shaped with gloss) -->
                 <div class="vn-control-buttons">
                     <button class="vn-control-btn vn-auto-btn" id="vn-auto-btn">
-                        <span class="btn-icon">▶</span>
+                        <span class="btn-icon">&#x25B6;</span>
                         <span>AUTO</span>
                     </button>
                     <button class="vn-control-btn vn-skip-btn">
-                        <span class="btn-icon">▶▶</span>
+                        <span class="btn-icon">&#x25B6;&#x25B6;</span>
                         <span>SKIP</span>
                     </button>
                 </div>
 
                 <div class="vn-scene-title" id="vn-scene-title"></div>
 
-                <!-- Dialogue Box - Glassmorphism Style with Decorative Frame -->
                 <div class="vn-dialogue-box">
-                    <!-- Decorative Frame -->
                     <div class="vn-dialogue-frame">
                         <div class="frame-corner tl"></div>
                         <div class="frame-corner tr"></div>
                         <div class="frame-corner bl"></div>
                         <div class="frame-corner br"></div>
-                        <div class="frame-line top"></div>
-                        <div class="frame-line bottom"></div>
-                        <div class="frame-line left"></div>
-                        <div class="frame-line right"></div>
                     </div>
-
-                    <!-- Name Tag Badge -->
                     <div id="vn-speaker" class="vn-speaker-name">
                         <span class="name-text">???</span>
-                        <div class="name-decoration"></div>
                     </div>
-
-                    <!-- Dialogue Content -->
                     <div class="vn-dialogue-content">
                         <div id="vn-text" class="vn-dialogue-text"></div>
                     </div>
-
-                    <!-- Click Indicator (Animated) -->
                     <div class="vn-continue-indicator">
-                        <span class="indicator-arrow">▼</span>
+                        <span class="indicator-arrow">&#x25BC;</span>
                     </div>
                 </div>
             </div>
@@ -244,17 +269,17 @@
                 </div>
                 <div class="choice-buttons">
                     <button class="choice-btn choice-a" id="choice-a">
-                        <span class="choice-icon">🙇</span>
+                        <span class="choice-icon">&#x1F647;</span>
                         <span class="choice-text">
                             <span class="choice-label">「はい！店主のご指導に従います！」</span>
-                            <span class="choice-effect">▶ 店主の機嫌 UP</span>
+                            <span class="choice-effect">&#x25B6; 店主の機嫌 UP</span>
                         </span>
                     </button>
                     <button class="choice-btn choice-b" id="choice-b">
-                        <span class="choice-icon">💡</span>
+                        <span class="choice-icon">&#x1F4A1;</span>
                         <span class="choice-text">
                             <span class="choice-label">「実は…イテレーティブなアプローチを…」</span>
-                            <span class="choice-effect">▶ 店主は怒るが、アジャイル成長 UP</span>
+                            <span class="choice-effect">&#x25B6; 店主は怒るが、アジャイル成長 UP</span>
                         </span>
                     </button>
                 </div>
@@ -264,30 +289,24 @@
 
         <!-- Mina Tip Modal -->
         <div id="mina-tip-modal" class="hidden overlay-screen mina-overlay">
-            <div class="overlay-content mina-tip-screen">
-                <img src="ミナ.jpg" alt="ミナ" class="mina-avatar-img">
-                <div class="mina-name-label">ミナ</div>
+            <div class="overlay-content mina-tip-content">
+                <img src="ミナ.png" alt="ミナ" class="mina-avatar">
+                <div class="mina-name">ミナ</div>
                 <p id="mina-tip-text"></p>
-                <button class="mina-tip-close-btn" id="mina-tip-close">ありがとう！</button>
+                <button class="pawa-btn-primary" id="mina-tip-close">ありがとう！</button>
             </div>
         </div>
     </div>
 
-    <!-- Core modules (load order matters) -->
+    <!-- Core modules -->
     <script src="js/core/EventBus.js"></script>
     <script src="js/core/GameState.js"></script>
-
-    <!-- Systems -->
     <script src="js/systems/DialogueSystem.js"></script>
     <script src="js/systems/KitchenEngine.js"></script>
     <script src="js/systems/EpisodeManager.js"></script>
-
-    <!-- UI Renderers -->
     <script src="js/ui/CharacterDisplay.js"></script>
     <script src="js/ui/DialogueUIRenderer.js"></script>
     <script src="js/ui/GameUIRenderer.js"></script>
-
-    <!-- Main entry point -->
     <script src="js/main.js"></script>
 </body>
 </html>

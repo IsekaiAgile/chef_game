@@ -1,5 +1,5 @@
 /**
- * GameUIRenderer - Renders game state to DOM
+ * GameUIRenderer - Renders game state to DOM (Tokimeki/PowerPro Style)
  *
  * SOLID Principles:
  * - Single Responsibility: Only renders game UI elements
@@ -17,15 +17,18 @@ class GameUIRenderer {
             maxGrowth: config.maxGrowth || 50,
             actionNames: config.actionNames || {
                 1: '試食',
-                2: 'CI/CD',
+                2: '整備',
                 3: '傾聴'
             },
             actionIcons: config.actionIcons || {
                 1: '🍳',
                 2: '🔧',
-                3: '👥'
+                3: '👂'
             }
         };
+
+        // Track previous state for floating text effects
+        this._prevState = null;
 
         this._setupEventListeners();
     }
@@ -37,20 +40,24 @@ class GameUIRenderer {
         this._eventBus.on(GameEvents.GAME_OVER, this._onGameOver.bind(this));
         this._eventBus.on(GameEvents.GAME_VICTORY, this._onVictory.bind(this));
         this._eventBus.on(GameEvents.EPISODE_COMPLETED, this._onEpisodeCompleted.bind(this));
+        this._eventBus.on(GameEvents.PERFECT_CYCLE, this._onPerfectCycle.bind(this));
     }
 
     // ===== Event Handlers =====
 
     _onStateChanged(data) {
-        this._renderMeters(data.newState);
-        this._renderStatus(data.newState);
-        this._renderComboDisplay(data.newState);
-        this._renderBalanceGauge(data.newState);
-        this._renderEpisodeStatus(data.newState);
+        // Show floating text for stat changes
+        if (this._prevState) {
+            this._showStatChanges(this._prevState, data.newState);
+        }
+        this._prevState = { ...data.newState };
+
+        this._renderAll(data.newState);
     }
 
     _onUpdateRequested(data) {
         if (data && data.state) {
+            this._prevState = { ...data.state };
             this._renderAll(data.state);
         }
     }
@@ -61,22 +68,22 @@ class GameUIRenderer {
     }
 
     _onGameOver(data) {
-        const actionsEl = document.getElementById('actions');
+        const commandMenu = document.querySelector('.pawa-command-menu');
         const gameoverEl = document.getElementById('gameover');
 
-        if (actionsEl) actionsEl.style.display = 'none';
+        if (commandMenu) commandMenu.style.display = 'none';
         if (gameoverEl) gameoverEl.classList.remove('hidden');
     }
 
     _onVictory(data) {
-        const actionsEl = document.getElementById('actions');
+        const commandMenu = document.querySelector('.pawa-command-menu');
         const endingEl = document.getElementById('ending');
         const messageEl = document.getElementById('message');
 
-        if (actionsEl) actionsEl.style.display = 'none';
+        if (commandMenu) commandMenu.style.display = 'none';
         if (endingEl) endingEl.classList.remove('hidden');
         if (messageEl) {
-            messageEl.innerHTML = '<span class="victory">老店主がついにアジャイルを認めた！</span>';
+            messageEl.textContent = '老店主がついにアジャイルを認めた！';
         }
     }
 
@@ -84,110 +91,142 @@ class GameUIRenderer {
         const { episode } = data;
         if (episode === 1) {
             this._showEpisode1Clear();
+            this._spawnFloatingText('EPISODE 1 CLEAR!', 'perfect', window.innerWidth / 2, window.innerHeight / 3);
         } else if (episode === 2) {
             const messageEl = document.getElementById('message');
             if (messageEl) {
-                messageEl.innerHTML = '<span class="episode-clear">第2話クリア！</span> 変化への対応力を身につけた！';
+                messageEl.textContent = '第2話クリア！ 変化への対応力を身につけた！';
             }
         }
+    }
+
+    _onPerfectCycle(data) {
+        // Show big floating text for perfect cycle
+        this._spawnFloatingText('PERFECT CYCLE!', 'perfect', window.innerWidth / 2, window.innerHeight / 2);
+
+        // Make cycle slots pulse
+        const slots = document.querySelectorAll('.cycle-slot');
+        slots.forEach(slot => {
+            slot.classList.add('perfect');
+            setTimeout(() => slot.classList.remove('perfect'), 2000);
+        });
+    }
+
+    // ===== Floating Text Effects =====
+
+    _showStatChanges(prevState, newState) {
+        const changes = [
+            { key: 'growth', label: '成長', element: 'growth-meter' },
+            { key: 'stagnation', label: '停滞', element: 'stagnation-meter', invert: true },
+            { key: 'oldManMood', label: '機嫌', element: 'mood-val' },
+            { key: 'ingredientQuality', label: '品質', element: 'quality-val' }
+        ];
+
+        changes.forEach(({ key, label, element, invert }) => {
+            const diff = newState[key] - prevState[key];
+            if (diff !== 0) {
+                const el = document.getElementById(element);
+                if (el) {
+                    const rect = el.getBoundingClientRect();
+                    const isPositive = invert ? diff < 0 : diff > 0;
+                    const text = diff > 0 ? `+${diff}` : `${diff}`;
+                    this._spawnFloatingText(text, isPositive ? 'positive' : 'negative', rect.left + rect.width / 2, rect.top);
+                }
+            }
+        });
+    }
+
+    _spawnFloatingText(text, type, x, y) {
+        const container = document.getElementById('floating-text-container');
+        if (!container) return;
+
+        const el = document.createElement('div');
+        el.className = `floating-text ${type}`;
+        el.textContent = text;
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+
+        container.appendChild(el);
+
+        // Remove after animation
+        setTimeout(() => {
+            if (el.parentNode) {
+                el.parentNode.removeChild(el);
+            }
+        }, 2000);
     }
 
     // ===== Render Methods =====
 
     _renderAll(state) {
+        this._renderScoreboard(state);
         this._renderMeters(state);
-        this._renderStatus(state);
-        this._renderComboDisplay(state);
+        this._renderSecondaryStats(state);
         this._renderBalanceGauge(state);
-        this._renderEpisodeStatus(state);
+        this._renderCycleDisplay(state);
         this._renderChallenge(state);
     }
 
-    _renderMeters(state) {
+    _renderScoreboard(state) {
         const dayEl = document.getElementById('day');
-        const stagnationValEl = document.getElementById('stagnation-val');
-        const stagnationMeterEl = document.getElementById('stagnation-meter');
-        const growthValEl = document.getElementById('growth-val');
-        const growthMeterEl = document.getElementById('growth-meter');
+        const episodeNumEl = document.getElementById('episode-num');
+        const episodeTitleEl = document.getElementById('episode-title');
 
         if (dayEl) dayEl.textContent = state.day;
-        if (stagnationValEl) stagnationValEl.textContent = state.stagnation;
-        if (stagnationMeterEl) stagnationMeterEl.style.width = `${state.stagnation}%`;
+        if (episodeNumEl) episodeNumEl.textContent = state.currentEpisode;
+
+        const episodeTitles = {
+            1: '伝統と革新',
+            2: '変化への対応',
+            3: '最終決戦'
+        };
+        if (episodeTitleEl) {
+            episodeTitleEl.textContent = episodeTitles[state.currentEpisode] || '';
+        }
+    }
+
+    _renderMeters(state) {
+        // Growth gauge
+        const growthValEl = document.getElementById('growth-val');
+        const growthMeterEl = document.getElementById('growth-meter');
         if (growthValEl) growthValEl.textContent = state.growth;
         if (growthMeterEl) {
             growthMeterEl.style.width = `${(state.growth / this._config.maxGrowth) * 100}%`;
         }
-    }
 
-    _renderStatus(state) {
-        const statusEl = document.getElementById('status-additional');
-        if (!statusEl) return;
-
-        let html = `
-            <div class="status-row">
-                <span class="status-label">老店主の機嫌</span>
-                <span class="status-value">${state.oldManMood}/100</span>
-            </div>
-            <div class="status-row">
-                <span class="status-label">食材の品質</span>
-                <span class="status-value">${state.ingredientQuality}/100</span>
-            </div>
-            <div class="status-row">
-                <span class="status-label">手持ち食材</span>
-                <span class="status-value">${state.currentIngredients}個</span>
-            </div>
-        `;
-
-        if (state.technicalDebt > 0) {
-            html += `
-                <div class="status-row warning">
-                    <span class="status-label">技術的負債</span>
-                    <span class="status-value debt">停滞度 +${state.technicalDebt}</span>
-                </div>
-            `;
+        // Reputation gauge (oldManMood)
+        const moodValEl = document.getElementById('mood-val');
+        const reputationMeterEl = document.getElementById('reputation-meter');
+        if (moodValEl) moodValEl.textContent = state.oldManMood;
+        if (reputationMeterEl) {
+            reputationMeterEl.style.width = `${state.oldManMood}%`;
         }
 
-        if (state.stagnation >= 80) {
-            html += '<div class="alert-box danger">停滞度が危険域！老店主の忍耐が限界に…</div>';
-        } else if (state.ingredientQuality < 30) {
-            html += '<div class="alert-box warning">品質警告！食材が劣化しています</div>';
-        }
+        // Stagnation display
+        const stagnationValEl = document.getElementById('stagnation-val');
+        const stagnationWarning = document.getElementById('stagnation-warning');
+        if (stagnationValEl) stagnationValEl.textContent = state.stagnation;
 
-        statusEl.innerHTML = html;
-    }
-
-    _renderComboDisplay(state) {
-        const comboEl = document.getElementById('combo-display');
-        if (!comboEl) return;
-
-        const { actionHistory, perfectCycleCount } = state;
-        const isPerfect = this._isPerfectCycle(actionHistory);
-        const missingActions = this._getMissingActions(actionHistory);
-
-        let html = '<div class="combo-header">スプリントサイクル</div>';
-        html += '<div class="combo-slots">';
-
-        for (let i = 0; i < 3; i++) {
-            const actualIndex = Math.max(0, actionHistory.length - 3) + i;
-            if (actualIndex < actionHistory.length && actionHistory.length > i) {
-                const act = actionHistory[actualIndex];
-                html += `<div class="combo-slot filled">${this._config.actionIcons[act]}<span>${this._config.actionNames[act]}</span></div>`;
+        // Show/hide stagnation warning based on level
+        if (stagnationWarning) {
+            if (state.stagnation >= 30) {
+                stagnationWarning.style.display = 'flex';
             } else {
-                html += '<div class="combo-slot empty">?</div>';
+                stagnationWarning.style.display = 'none';
             }
         }
-        html += '</div>';
+    }
 
-        if (isPerfect) {
-            html += '<div class="combo-perfect">パーフェクトサイクル！</div>';
-            if (perfectCycleCount > 1) {
-                html += `<div class="combo-streak">${perfectCycleCount}連続！</div>`;
-            }
-        } else if (actionHistory.length >= 2 && missingActions.length === 1) {
-            html += `<div class="combo-hint">次は「${this._config.actionNames[missingActions[0]]}」でパーフェクト！</div>`;
-        }
+    _renderSecondaryStats(state) {
+        const moodEl = document.getElementById('mood-val');
+        const qualityEl = document.getElementById('quality-val');
+        const ingredientsEl = document.getElementById('ingredients-val');
+        const debtEl = document.getElementById('debt-val');
 
-        comboEl.innerHTML = html;
+        if (moodEl) moodEl.textContent = state.oldManMood;
+        if (qualityEl) qualityEl.textContent = state.ingredientQuality;
+        if (ingredientsEl) ingredientsEl.textContent = state.currentIngredients;
+        if (debtEl) debtEl.textContent = state.technicalDebt;
     }
 
     _renderBalanceGauge(state) {
@@ -195,51 +234,59 @@ class GameUIRenderer {
         const status = document.getElementById('balance-status');
         if (!indicator || !status) return;
 
+        // Position: 0 = full tradition (left), 100 = full innovation (right)
         const position = 100 - state.traditionScore;
         indicator.style.left = `${position}%`;
 
-        indicator.classList.remove('tradition-heavy', 'innovation-heavy', 'balanced');
-        status.classList.remove('tradition', 'innovation', 'balanced');
-
         if (state.traditionScore >= 60) {
-            indicator.classList.add('tradition-heavy');
-            status.classList.add('tradition');
-            status.textContent = '伝統寄り：革新が必要';
+            status.textContent = '伝統寄り：革新が必要！';
+            status.style.color = 'var(--sim-purple)';
         } else if (state.traditionScore <= 40) {
-            indicator.classList.add('innovation-heavy');
-            status.classList.add('innovation');
-            status.textContent = '革新寄り：伝統を尊重せよ';
+            status.textContent = '革新寄り：伝統を尊重せよ！';
+            status.style.color = 'var(--sim-cyan)';
         } else {
-            indicator.classList.add('balanced');
-            status.classList.add('balanced');
-            status.textContent = '調和：伝統と革新のバランス';
+            status.textContent = '調和達成！バランス良好！';
+            status.style.color = 'var(--sim-yellow)';
         }
     }
 
-    _renderEpisodeStatus(state) {
-        const epStatusEl = document.getElementById('episode-status');
-        if (!epStatusEl) return;
+    _renderCycleDisplay(state) {
+        const comboEl = document.getElementById('combo-display');
+        if (!comboEl) return;
 
-        const episodeGoals = {
-            1: { goalGrowth: 20, goalBalance: true, message: '第1話：伝統を守りながら、変化を受け入れろ' },
-            2: { goalSuccess: 2, message: '第2話：無理難題！異世界の顧客に対応せよ' },
-            3: { goalGrowth: 50, goalMood: 80, message: '最終話：老店主にアジャイルを認めさせろ！' }
-        };
+        const { actionHistory, perfectCycleCount } = state;
+        const isPerfect = this._isPerfectCycle(actionHistory);
+        const missingActions = this._getMissingActions(actionHistory);
 
-        const epData = episodeGoals[state.currentEpisode];
-        let html = `<div class="episode-title">${epData.message}</div>`;
-
-        if (state.currentEpisode === 1) {
-            const isBalanced = state.traditionScore >= 35 && state.traditionScore <= 65;
-            const balanceStatus = isBalanced ? '達成' : '未達成';
-            html += `<div class="episode-goal">目標：成長度 ${state.growth}/${epData.goalGrowth} ＆ バランス（${balanceStatus}）</div>`;
-        } else if (state.currentEpisode === 2) {
-            html += `<div class="episode-goal">目標：特殊客対応 ${state.specialChallengeSuccess}/${epData.goalSuccess}回</div>`;
-        } else if (state.currentEpisode === 3) {
-            html += `<div class="episode-goal">目標：成長度 ${state.growth}/${epData.goalGrowth} ＆ 店主機嫌 ${state.oldManMood}/${epData.goalMood}以上</div>`;
+        // Build cycle slots
+        let slotsHtml = '';
+        for (let i = 0; i < 3; i++) {
+            const actualIndex = Math.max(0, actionHistory.length - 3) + i;
+            if (actualIndex < actionHistory.length && actionHistory.length > i) {
+                const act = actionHistory[actualIndex];
+                const slotClass = isPerfect ? 'cycle-slot filled perfect' : 'cycle-slot filled';
+                slotsHtml += `<div class="${slotClass}">${this._config.actionIcons[act]}</div>`;
+            } else {
+                slotsHtml += '<div class="cycle-slot empty">?</div>';
+            }
         }
 
-        epStatusEl.innerHTML = html;
+        // Build hint
+        let hintHtml = '';
+        if (isPerfect) {
+            hintHtml = `<span style="color: var(--sim-yellow);">パーフェクトサイクル！${perfectCycleCount > 1 ? ` ${perfectCycleCount}連続！` : ''}</span>`;
+        } else if (actionHistory.length >= 2 && missingActions.length === 1) {
+            hintHtml = `次は「${this._config.actionNames[missingActions[0]]}」でパーフェクト！`;
+        }
+
+        comboEl.innerHTML = `
+            <div class="cycle-header">
+                <span class="cycle-icon">🔄</span>
+                <span class="cycle-title">スプリントサイクル</span>
+            </div>
+            <div class="cycle-slots">${slotsHtml}</div>
+            <div class="cycle-hint" id="cycle-hint">${hintHtml}</div>
+        `;
     }
 
     _renderChallenge(state) {
@@ -247,25 +294,30 @@ class GameUIRenderer {
         if (!challengeEl) return;
 
         const challenges = [
-            '客足が多い日。迅速な対応（CI/CD）が重要！',
-            '老店主が監視中。大きな変更（イテレーション試食）は控えめに。',
-            '仕入れ問題発生。リソースを節約せよ！',
-            '曖昧な注文が多い。ユーザーの声を聴く絶好の機会！',
-            '古い設備（技術的負債）に注意。CI/CDに集中すべき日。'
+            '客足が多い日。迅速な対応が重要！',
+            '老店主が監視中。慎重に行動せよ。',
+            '仕入れ問題発生。リソースを節約！',
+            '曖昧な注文多し。傾聴の好機！',
+            '設備劣化注意。整備に集中すべし。'
         ];
 
-        let html = '<div class="challenge-label">今日のスプリント目標</div>';
+        let labelText = '今日の目標';
+        let challengeText = '';
 
         if (state.specialCustomer) {
-            html += `<div class="challenge-text urgent">緊急：${state.specialCustomer.name}の要求に対応せよ！</div>`;
+            labelText = '緊急依頼';
+            challengeText = `${state.specialCustomer.name}の要求に対応せよ！`;
         } else if (state.requirementChangeActive) {
-            html += '<div class="challenge-text urgent">仕様変更：顧客が注文を変更しました！</div>';
+            labelText = '仕様変更';
+            challengeText = '顧客が注文を変更しました！';
         } else {
-            const randomChallenge = challenges[Math.floor(Math.random() * challenges.length)];
-            html += `<div class="challenge-text">${randomChallenge}</div>`;
+            challengeText = challenges[state.day % challenges.length];
         }
 
-        challengeEl.innerHTML = html;
+        challengeEl.innerHTML = `
+            <span class="event-label">${labelText}</span>
+            <span class="event-text">${challengeText}</span>
+        `;
     }
 
     _renderResult(message) {
@@ -302,29 +354,63 @@ class GameUIRenderer {
 
         if (clearEl) clearEl.classList.remove('hidden');
         if (messageEl) {
-            messageEl.innerHTML = '<span class="episode-clear">第1話クリア：革新の第一歩</span>';
+            messageEl.textContent = '第1話クリア：革新の第一歩';
         }
     }
 
     // ===== Public Methods =====
 
     /**
-     * Show game UI elements
+     * Show game UI elements (Pawapuro-style panels)
      */
     showGameUI() {
-        const elements = ['episode-card', 'challenge-card', 'status-card', 'actions-card', 'result-card'];
-        elements.forEach(id => {
+        const panels = [
+            'pawa-top-hud',
+            'pawa-hero-layer',
+            'pawa-command-menu',
+            'pawa-cycle-float',
+            'pawa-balance-float',
+            'pawa-bottom-hud',
+            'pawa-dialogue-box',
+            'pawa-result-panel'
+        ];
+
+        // Show by class name
+        panels.forEach(className => {
+            const el = document.querySelector('.' + className);
+            if (el) el.style.display = '';
+        });
+
+        // Also show by ID for legacy compatibility
+        const legacyIds = ['status-card', 'challenge-card', 'actions-card', 'result-card'];
+        legacyIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = '';
         });
     }
 
     /**
-     * Hide game UI elements
+     * Hide game UI elements (Pawapuro-style panels)
      */
     hideGameUI() {
-        const elements = ['episode-card', 'challenge-card', 'status-card', 'actions-card', 'result-card'];
-        elements.forEach(id => {
+        const panels = [
+            'pawa-top-hud',
+            'pawa-hero-layer',
+            'pawa-command-menu',
+            'pawa-cycle-float',
+            'pawa-balance-float',
+            'pawa-bottom-hud',
+            'pawa-dialogue-box',
+            'pawa-result-panel'
+        ];
+
+        panels.forEach(className => {
+            const el = document.querySelector('.' + className);
+            if (el) el.style.display = 'none';
+        });
+
+        const legacyIds = ['status-card', 'challenge-card', 'actions-card', 'result-card'];
+        legacyIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
         });
@@ -335,6 +421,7 @@ class GameUIRenderer {
      * @param {Object} state - Game state
      */
     update(state) {
+        this._prevState = { ...state };
         this._renderAll(state);
     }
 }

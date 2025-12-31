@@ -99,12 +99,20 @@ class CeremonyManager {
         this._currentPhase = GAME_PHASES.MORNING;
         this._actionsThisDay = 0;
         this._failedActions = [];
+        this._isTransitioningToNight = false;  // Reset guard flag
         this._dayStartState = { ...this._gameState.getState() };
+
+        const currentDay = this._gameState.get('day');
+
+        // CRITICAL: Force UI update by emitting state change
+        this._eventBus.emit(GameEvents.UI_UPDATE_REQUESTED, {
+            state: this._gameState.getState()
+        });
 
         // Emit phase change
         this._eventBus.emit('ceremony:phase_changed', {
             phase: GAME_PHASES.MORNING,
-            day: this._gameState.get('day')
+            day: currentDay
         });
 
         // Show morning stand-up UI
@@ -512,9 +520,17 @@ class CeremonyManager {
 
     /**
      * Start next day (called from UI after retro is dismissed)
+     * This is called when user clicks "Continue" button on Night Retrospective
      */
     proceedToNextDay() {
-        // Advance day counter happens in KitchenEngine, just start new day ceremony
+        // CRITICAL: End the retrospective first to advance the day counter
+        // This handles the case where there was no Pivot decision
+        // (handlePivotChoice already calls _endRetrospective, so we check phase)
+        if (this._currentPhase === GAME_PHASES.NIGHT) {
+            this._endRetrospective();
+        }
+
+        // Start the new day's morning ceremony
         this.startNewDay();
     }
 

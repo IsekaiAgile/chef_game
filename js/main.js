@@ -273,7 +273,14 @@ class GameApp {
         const retroContinue = document.getElementById('retro-continue');
         if (retroContinue) {
             retroContinue.addEventListener('click', () => {
+                // CRITICAL: Clear ALL ceremony overlays to prevent interaction lock
                 this._ceremonyUIRenderer.hideNightRetro();
+                this._ceremonyUIRenderer.hideMorningStandup();
+
+                // Also ensure result panel is cleared
+                const resultEl = document.getElementById('result');
+                if (resultEl) resultEl.innerHTML = '';
+
                 // Start next day's morning stand-up
                 setTimeout(() => {
                     this._ceremonyManager.proceedToNextDay();

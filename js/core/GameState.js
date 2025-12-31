@@ -20,6 +20,7 @@ class GameState {
             growth: 0,
             technicalDebt: 0,
             maxGrowth: 50,
+            maxDays: 7,  // Episode 1: 7-day sprint
 
             // Kitchen state
             oldManMood: 70,
@@ -32,10 +33,12 @@ class GameState {
             specialChallengeSuccess: 0,
             requirementChangeActive: false,
 
-            // Episode 1 specific
+            // Episode 1 specific: 7-Day Sprint
             traditionScore: 50,
             hybridMomentTriggered: false,
             hasChefKnife: false,
+            spiceCrisisActive: false,  // Day 3-4 crisis event
+            judgmentTriggered: false,  // Day 7 final evaluation
 
             // Episode 2 specific (Goblin - orders)
             ordersCompleted: 0,

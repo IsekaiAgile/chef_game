@@ -257,6 +257,37 @@ class GameApp {
                 }, 300);
             });
         }
+
+        // ===== EPISODE 1: 7-DAY SPRINT BUTTONS =====
+
+        // Spice Crisis continue button
+        const crisisContinue = document.getElementById('crisis-continue');
+        if (crisisContinue) {
+            crisisContinue.addEventListener('click', () => {
+                this._ceremonyUIRenderer.hideSpiceCrisis();
+                // Continue to morning standup after crisis acknowledged
+                setTimeout(() => {
+                    this._ceremonyManager.startNewDay();
+                }, 300);
+            });
+        }
+
+        // Judgment continue button (handles both success and failure)
+        const judgmentContinue = document.getElementById('judgment-continue');
+        if (judgmentContinue) {
+            judgmentContinue.addEventListener('click', () => {
+                const action = judgmentContinue.dataset.action;
+                this._ceremonyUIRenderer.hideJudgment();
+
+                if (action === 'next-episode') {
+                    // Success: Advance to Episode 2
+                    this.startEpisode(2);
+                } else {
+                    // Failure: Restart Episode 1
+                    this.restart();
+                }
+            });
+        }
     }
 
     /**

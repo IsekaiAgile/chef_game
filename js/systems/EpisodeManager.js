@@ -28,24 +28,37 @@ const SCENES = {
 const EPISODE_CONFIG = {
     1: {
         id: 1,
-        title: '第1話：新入りバイト',
-        subtitle: 'The New Hire at the Diner',
-        description: 'アジャイルの基本を学ぶ',
+        title: '第1話：7日間の試用期間',
+        subtitle: 'The 7-Day Sprint to Employment',
+        description: '7日間で成長50を達成し、店主に認められろ！',
+        dish: '黄金のクミン・ラグー',
+        dishEnglish: 'Golden Cumin Ragout',
         guest: null,
         characters: ['mina', 'owner', 'fuji'],
+        maxDays: 7,
+        maxGrowth: 50,
+        actionsPerDay: 3,
         modifiers: {
             qualityDecayRate: 1.0,
             orderFrequency: 1.0,
             ingredientConsumption: 1
         },
+        // Mid-week crisis event (Days 3-4)
+        spiceCrisis: {
+            triggerDay: 3,
+            endDay: 4,
+            qualityPenalty: -0.20,      // -20% success for quality/cooking
+            experimentBonus: 0.20        // +20% success for experiment
+        },
         winCondition: {
-            type: 'growth_and_balance',
-            growth: 20,
-            balanced: true
+            type: 'growth_target',
+            growth: 50,
+            byDay: 7
         },
         lossCondition: {
-            type: 'stagnation',
-            stagnation: 100
+            type: 'day_limit_failed',
+            maxDay: 7,
+            requiredGrowth: 50
         }
     },
     2: {

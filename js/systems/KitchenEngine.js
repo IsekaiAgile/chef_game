@@ -416,6 +416,15 @@ class KitchenEngine {
         if (state.currentIngredients === 0 && actionId !== 2) rate -= 0.15;
         if (state.technicalDebt > 10) rate -= 0.05;
 
+        // ===== SPICE CRISIS MODIFIERS (Episode 1, Day 3-4) =====
+        if (state.spiceCrisisActive) {
+            if (actionId === 1) {
+                // Cooking/Quality actions get -20% penalty
+                rate -= 0.20;
+            }
+            // Note: Experiment focus gets +20% bonus (handled below)
+        }
+
         // Daily Focus buffs (from Morning Stand-up)
         const focusEffect = state.dailyFocusEffect;
         if (focusEffect) {
@@ -424,8 +433,13 @@ class KitchenEngine {
                 rate += focusEffect.successBonus;
             }
             // Experiment focus: risk bonus (-10% but more reward)
+            // During Spice Crisis: Experiment gets +20% instead of -10%
             if (focusEffect.riskBonus) {
-                rate -= 0.10;
+                if (state.spiceCrisisActive) {
+                    rate += 0.20;  // Spice Crisis experiment bonus!
+                } else {
+                    rate -= 0.10;
+                }
             }
         }
 

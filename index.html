@@ -346,7 +346,12 @@
                         <span class="badge-icon">&#x2600;</span>
                         <span class="badge-text">DAILY STAND-UP</span>
                     </div>
-                    <div class="ceremony-day">DAY <span id="standup-day">1</span></div>
+                    <div class="ceremony-day">DAY <span id="standup-day">1</span> / <span id="standup-max-day">7</span></div>
+                </div>
+                <!-- Crisis Indicator (shown during Spice Crisis) -->
+                <div id="crisis-indicator" class="crisis-indicator hidden">
+                    <span class="crisis-icon">&#x26A0;</span>
+                    <span class="crisis-label">スパイス危機中！</span>
                 </div>
 
                 <div class="ceremony-dialogue" id="standup-dialogue">
@@ -385,7 +390,7 @@
                         <span class="badge-icon">&#x1F319;</span>
                         <span class="badge-text">RETROSPECTIVE</span>
                     </div>
-                    <div class="ceremony-day">DAY <span id="retro-day">1</span> 終了</div>
+                    <div class="ceremony-day">DAY <span id="retro-day">1</span> / <span id="retro-max-day">7</span> 終了</div>
                 </div>
 
                 <div class="retro-summary">
@@ -449,6 +454,49 @@
         <div id="actions-remaining" class="actions-remaining hidden">
             <span class="remaining-label">残りアクション</span>
             <span class="remaining-count" id="remaining-count">3</span>
+        </div>
+
+        <!-- ===== EPISODE 1: SPICE CRISIS OVERLAY ===== -->
+        <div id="spice-crisis-overlay" class="hidden ceremony-overlay crisis-overlay">
+            <div class="ceremony-bg crisis-bg"></div>
+            <div class="ceremony-content">
+                <div class="crisis-header">
+                    <div class="crisis-badge">
+                        <span class="crisis-icon-large">&#x26A0;</span>
+                        <span id="crisis-title">スパイス危機発生！</span>
+                    </div>
+                </div>
+                <div class="crisis-body">
+                    <p id="crisis-message" class="crisis-message">スパイスの配達が遅れている！店の在庫が空っぽだ！</p>
+                    <div id="crisis-effect" class="crisis-effect">Day 3-4: 調理の成功率-20%、実験の成功率+20%</div>
+                    <div id="crisis-dialogue" class="crisis-dialogue">
+                        <!-- Dialogue will be inserted here -->
+                    </div>
+                </div>
+                <button class="pawa-btn-primary" id="crisis-continue">危機を乗り越える！</button>
+            </div>
+        </div>
+
+        <!-- ===== EPISODE 1: DAY 7 JUDGMENT OVERLAY ===== -->
+        <div id="judgment-overlay" class="hidden ceremony-overlay judgment-overlay">
+            <div class="ceremony-bg judgment-bg"></div>
+            <div class="ceremony-content">
+                <div class="judgment-header">
+                    <div class="judgment-badge">
+                        <span class="judgment-icon">&#x2696;</span>
+                        <span class="judgment-title">7日目の審判</span>
+                    </div>
+                    <div id="judgment-result" class="judgment-result">結果...</div>
+                    <div id="judgment-growth" class="judgment-growth">成長: 0 / 50</div>
+                </div>
+                <div id="judgment-dialogue" class="judgment-dialogue">
+                    <!-- Dialogue will be inserted here -->
+                </div>
+                <div id="judgment-reward" class="judgment-reward hidden">
+                    <!-- Reward will be inserted here -->
+                </div>
+                <button class="pawa-btn-primary" id="judgment-continue">続ける</button>
+            </div>
         </div>
     </div>
 

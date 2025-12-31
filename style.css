@@ -2514,3 +2514,292 @@ body {
     font-size: 0.85rem;
     font-weight: 700;
 }
+
+/* ===== EPISODE 1: 7-DAY SPRINT UI ===== */
+
+/* Crisis Indicator (during Spice Crisis) */
+.crisis-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.9) 0%, rgba(230, 60, 60, 0.95) 100%);
+    color: white;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    animation: crisisPulse 1.5s ease-in-out infinite;
+    box-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+    margin-top: 10px;
+}
+
+.crisis-indicator .crisis-icon {
+    font-size: 1.2rem;
+    animation: crisisShake 0.5s ease-in-out infinite;
+}
+
+@keyframes crisisPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.9; }
+}
+
+@keyframes crisisShake {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-5deg); }
+    75% { transform: rotate(5deg); }
+}
+
+/* ===== SPICE CRISIS OVERLAY ===== */
+.crisis-overlay {
+    background: rgba(0, 0, 0, 0.85);
+}
+
+.crisis-bg {
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.3) 0%, rgba(180, 50, 50, 0.4) 100%);
+}
+
+.crisis-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.crisis-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 15px;
+    background: linear-gradient(135deg, #FF6B6B 0%, #E63C3C 100%);
+    color: white;
+    padding: 15px 30px;
+    border-radius: 30px;
+    font-size: 1.5rem;
+    font-weight: 900;
+    box-shadow: 0 0 30px rgba(255, 107, 107, 0.6);
+    animation: crisisBadgePulse 2s ease-in-out infinite;
+}
+
+.crisis-icon-large {
+    font-size: 2.5rem;
+    animation: crisisShake 0.5s ease-in-out infinite;
+}
+
+@keyframes crisisBadgePulse {
+    0%, 100% { box-shadow: 0 0 30px rgba(255, 107, 107, 0.6); }
+    50% { box-shadow: 0 0 50px rgba(255, 107, 107, 0.9); }
+}
+
+.crisis-body {
+    background: var(--panel-bg);
+    border: 3px solid var(--pawa-red);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.crisis-message {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.crisis-effect {
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.2) 0%, rgba(255, 158, 128, 0.2) 100%);
+    border: 2px dashed var(--pawa-red);
+    border-radius: 10px;
+    padding: 12px 15px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--pawa-red);
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.crisis-dialogue {
+    background: rgba(255, 248, 231, 0.9);
+    border-radius: 10px;
+    padding: 15px;
+}
+
+.crisis-dialogue-line {
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.crisis-dialogue-line:last-child {
+    border-bottom: none;
+}
+
+.crisis-speaker {
+    font-weight: 700;
+    color: var(--pawa-red);
+}
+
+.crisis-text {
+    color: var(--text-dark);
+}
+
+/* ===== JUDGMENT OVERLAY ===== */
+.judgment-overlay {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+.judgment-overlay.success .judgment-bg {
+    background: linear-gradient(135deg, rgba(126, 217, 87, 0.3) 0%, rgba(80, 180, 50, 0.4) 100%);
+}
+
+.judgment-overlay.failure .judgment-bg {
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.3) 0%, rgba(180, 50, 50, 0.4) 100%);
+}
+
+.judgment-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.judgment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, var(--fantasy-gold) 0%, var(--fantasy-brown) 100%);
+    color: white;
+    padding: 10px 25px;
+    border-radius: 25px;
+    font-size: 1.2rem;
+    font-weight: 900;
+    box-shadow: 0 0 30px rgba(212, 175, 55, 0.6);
+}
+
+.judgment-icon {
+    font-size: 1.8rem;
+}
+
+.judgment-result {
+    font-size: 2.5rem;
+    font-weight: 900;
+    margin-top: 20px;
+    text-shadow: 0 0 20px currentColor;
+}
+
+.judgment-overlay.success .judgment-result {
+    color: var(--pawa-green);
+    animation: successGlow 2s ease-in-out infinite;
+}
+
+.judgment-overlay.failure .judgment-result {
+    color: var(--pawa-red);
+    animation: failureShake 0.5s ease-in-out;
+}
+
+@keyframes successGlow {
+    0%, 100% { text-shadow: 0 0 20px rgba(126, 217, 87, 0.6); }
+    50% { text-shadow: 0 0 40px rgba(126, 217, 87, 0.9); }
+}
+
+@keyframes failureShake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-10px); }
+    40%, 80% { transform: translateX(10px); }
+}
+
+.judgment-growth {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-light);
+    margin-top: 10px;
+}
+
+.judgment-dialogue {
+    background: var(--panel-bg);
+    border: 3px solid var(--fantasy-gold);
+    border-radius: 15px;
+    padding: 20px;
+    margin: 20px 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.judgment-dialogue-line {
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.judgment-dialogue-line:last-child {
+    border-bottom: none;
+}
+
+.judgment-speaker {
+    font-weight: 700;
+    color: var(--fantasy-gold);
+}
+
+.judgment-text {
+    color: var(--text-dark);
+}
+
+.judgment-reward {
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.3) 0%, rgba(240, 215, 140, 0.3) 100%);
+    border: 3px solid var(--fantasy-gold);
+    border-radius: 15px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+    animation: rewardGlow 2s ease-in-out infinite;
+}
+
+@keyframes rewardGlow {
+    0%, 100% { box-shadow: 0 0 20px rgba(212, 175, 55, 0.4); }
+    50% { box-shadow: 0 0 40px rgba(212, 175, 55, 0.7); }
+}
+
+.reward-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.reward-icon {
+    font-size: 3rem;
+    animation: rewardBounce 1s ease-in-out infinite;
+}
+
+@keyframes rewardBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.reward-name {
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: var(--fantasy-gold);
+}
+
+.reward-desc {
+    font-size: 0.9rem;
+    color: var(--text-light);
+}
+
+/* Mobile Adjustments for Episode 1 UI */
+@media (max-width: 480px) {
+    .crisis-badge {
+        font-size: 1.2rem;
+        padding: 10px 20px;
+    }
+
+    .crisis-icon-large {
+        font-size: 2rem;
+    }
+
+    .judgment-result {
+        font-size: 2rem;
+    }
+
+    .judgment-dialogue {
+        max-height: 150px;
+    }
+
+    .reward-icon {
+        font-size: 2.5rem;
+    }
+}

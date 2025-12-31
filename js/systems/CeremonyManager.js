@@ -59,6 +59,10 @@ class CeremonyManager {
         this._failedActions = [];
         this._dayStartState = null;
 
+        // Episode 1: 7-Day Sprint tracking
+        this._maxDays = 7;
+        this._spiceCrisisShown = false;
+
         this._setupEventListeners();
     }
 
@@ -110,14 +114,51 @@ class CeremonyManager {
     _showMorningStandup() {
         const state = this._gameState.getState();
         const day = state.day;
+        const maxDays = state.maxDays || this._maxDays;
+
+        // Check for Spice Crisis (Day 3 of Episode 1)
+        if (state.currentEpisode === 1 && day === 3 && !this._spiceCrisisShown) {
+            this._triggerSpiceCrisis();
+            return;
+        }
+
+        // Check if spice crisis should end (Day 5+)
+        if (state.currentEpisode === 1 && day >= 5 && state.spiceCrisisActive) {
+            this._gameState.update({ spiceCrisisActive: false });
+            this._eventBus.emit('ceremony:crisis_ended', {
+                message: 'スパイスの配達が到着！通常営業に戻る'
+            });
+        }
 
         // Generate contextual morning dialogue
         const dialogues = this._getMorningDialogue(state);
 
         this._eventBus.emit('ceremony:morning_standup', {
             day,
+            maxDays,
             dialogues,
-            focusOptions: Object.values(DAILY_FOCUS_OPTIONS)
+            focusOptions: Object.values(DAILY_FOCUS_OPTIONS),
+            isSpiceCrisis: state.spiceCrisisActive
+        });
+    }
+
+    /**
+     * Trigger the Spice Crisis event on Day 3
+     */
+    _triggerSpiceCrisis() {
+        this._spiceCrisisShown = true;
+        this._gameState.update({ spiceCrisisActive: true });
+
+        this._eventBus.emit('ceremony:spice_crisis', {
+            title: 'スパイス危機発生！',
+            message: 'スパイスの配達が遅れている！店の在庫が空っぽだ！',
+            effect: 'Day 3-4: 調理の成功率-20%、実験の成功率+20%',
+            dialogues: [
+                { speaker: 'ミナ', text: '大変！クミンが届いてないよ！' },
+                { speaker: '老店主', text: 'なんだと...！配達業者め...！' },
+                { speaker: 'ミナ', text: 'フジくん、今日は工夫が必要だね...' },
+                { speaker: 'narrator', text: 'スパイス不足の中、どう乗り越える？' }
+            ]
         });
     }
 
@@ -257,17 +298,72 @@ class CeremonyManager {
     _showNightRetrospective() {
         const state = this._gameState.getState();
         const daySummary = this._calculateDaySummary(state);
+        const maxDays = state.maxDays || this._maxDays;
+
+        // Check for Day 7 Judgment (Episode 1 final evaluation)
+        if (state.currentEpisode === 1 && state.day >= maxDays) {
+            this._triggerJudgmentScene(state);
+            return;
+        }
 
         // Check for Adapt/Pivot trigger (same action failed twice)
         const shouldTriggerPivot = this._checkPivotTrigger();
 
         this._eventBus.emit('ceremony:night_retro', {
             day: state.day,
+            maxDays,
             summary: daySummary,
             triggerPivot: shouldTriggerPivot,
             pivotMessage: shouldTriggerPivot ?
-                'このやり方は上手くいってない…アプローチを変えるべき？' : null
+                'このやり方は上手くいってない…アプローチを変えるべき？' : null,
+            isSpiceCrisis: state.spiceCrisisActive
         });
+    }
+
+    /**
+     * Trigger the Day 7 Judgment Scene (Episode 1 finale)
+     */
+    _triggerJudgmentScene(state) {
+        const requiredGrowth = 50;
+        const isSuccess = state.growth >= requiredGrowth;
+
+        this._gameState.update({ judgmentTriggered: true });
+
+        if (isSuccess) {
+            this._eventBus.emit('ceremony:judgment_success', {
+                growth: state.growth,
+                requiredGrowth,
+                dialogues: [
+                    { speaker: 'narrator', text: '7日目の夜。老店主がフジを呼び止めた。' },
+                    { speaker: '老店主', text: '...フジ。' },
+                    { speaker: 'fuji', text: 'はい...？' },
+                    { speaker: '老店主', text: 'お前の「黄金のクミン・ラグー」...悪くなかった。' },
+                    { speaker: 'ミナ', text: 'お父さん！それって...！' },
+                    { speaker: '老店主', text: 'まあ...使えるヤツがいると助かる。明日からも来い。' },
+                    { speaker: 'fuji', text: '！...ありがとうございます！' },
+                    { speaker: 'ミナ', text: 'やったね、フジくん！これからよろしくね！' },
+                    { speaker: 'narrator', text: 'こうして、フジは「ネコノヒゲ亭」の正式なスタッフになった。' }
+                ],
+                reward: {
+                    item: '老店主の包丁',
+                    description: '信頼の証として、古い包丁を受け取った'
+                }
+            });
+        } else {
+            this._eventBus.emit('ceremony:judgment_failure', {
+                growth: state.growth,
+                requiredGrowth,
+                dialogues: [
+                    { speaker: 'narrator', text: '7日目の夜。老店主が静かに告げた。' },
+                    { speaker: '老店主', text: '...フジ。残念だが、お前には向いてないようだ。' },
+                    { speaker: 'fuji', text: 'そんな...！' },
+                    { speaker: '老店主', text: '諦めが肝心だ。他を当たれ。' },
+                    { speaker: 'ミナ', text: 'お父さん...！でも...' },
+                    { speaker: '老店主', text: 'ミナ、仕方ないことだ。' },
+                    { speaker: 'narrator', text: 'フジは再び路頭に迷うことになった...' }
+                ]
+            });
+        }
     }
 
     /**

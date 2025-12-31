@@ -1,19 +1,11 @@
 /**
- * CharacterDisplay - Manages VN character sprite display
+ * CharacterDisplay - Manages VN character sprite display with anime.js animations
  *
- * SOLID Principles:
- * - Single Responsibility: Only handles character sprite display/positioning
- * - Open/Closed: New characters can be added via registerCharacter()
- * - Dependency Inversion: Uses EventBus for communication
- */
-
-/**
- * @typedef {Object} CharacterSprite
- * @property {string} id - Character ID
- * @property {string} name - Display name
- * @property {string} image - Image file path
- * @property {string} position - 'left' | 'right' | 'center'
- * @property {string} elementId - DOM element ID
+ * Features:
+ * - Slide-in character entry animations
+ * - "Talk-and-Jump" effect for active speaker
+ * - Brightness dimming for non-speaking characters
+ * - Smooth transitions using anime.js
  */
 
 class CharacterDisplay {
@@ -25,14 +17,16 @@ class CharacterDisplay {
         this._eventBus = eventBus;
         this._config = {
             containerSelector: config.containerSelector || '.vn-stage',
-            transitionDuration: config.transitionDuration || 300,
-            dimOpacity: config.dimOpacity || 0.5
+            transitionDuration: config.transitionDuration || 400,
+            dimOpacity: config.dimOpacity || 0.7,
+            speakerScale: config.speakerScale || 1.02
         };
 
         // Character registry
         this._characters = new Map();
         this._activeCharacters = new Set();
         this._speakingCharacter = null;
+        this._talkingAnimation = null;
 
         // Register default characters
         this._registerDefaultCharacters();
@@ -41,44 +35,36 @@ class CharacterDisplay {
         this._setupEventListeners();
     }
 
-    // ===== Character Registration (Open/Closed Principle) =====
+    // ===== Character Registration =====
 
-    /**
-     * Register a character sprite
-     * @param {CharacterSprite} character - Character definition
-     */
     registerCharacter(character) {
         this._characters.set(character.id, {
             ...character,
-            visible: false
+            visible: false,
+            hasEntered: false
         });
     }
 
-    /**
-     * Get character by ID
-     * @param {string} id - Character ID
-     * @returns {CharacterSprite|null}
-     */
     getCharacter(id) {
         return this._characters.get(id) || null;
     }
 
     _registerDefaultCharacters() {
         // === IMAGE PATH CONSTANTS ===
-        // Define all character sprites in one place to prevent path errors
         const SPRITES = {
             FUJI: 'fuji1.png',
             MINA: 'ミナ.png',
             OWNER: '親父.png'
         };
 
-        // Fuji - Main character (center-left position)
+        // Fuji - Main character (center position when speaking)
         this.registerCharacter({
             id: 'fuji',
             name: 'フジ',
             image: SPRITES.FUJI,
-            position: 'center-left',
-            elementId: 'vn-char-fuji'
+            position: 'center',
+            elementId: 'vn-char-fuji',
+            entryDirection: 'left'
         });
 
         // Mina - Owner's daughter (left position)
@@ -87,7 +73,8 @@ class CharacterDisplay {
             name: 'ミナ',
             image: SPRITES.MINA,
             position: 'left',
-            elementId: 'vn-char-mina'
+            elementId: 'vn-char-mina',
+            entryDirection: 'left'
         });
 
         // Owner - Old chef (right position)
@@ -96,7 +83,8 @@ class CharacterDisplay {
             name: '老店主',
             image: SPRITES.OWNER,
             position: 'right',
-            elementId: 'vn-char-owner'
+            elementId: 'vn-char-owner',
+            entryDirection: 'right'
         });
 
         // Narrator - No sprite
@@ -105,50 +93,142 @@ class CharacterDisplay {
             name: 'ナレーター',
             image: null,
             position: null,
-            elementId: null
+            elementId: null,
+            entryDirection: null
         });
     }
 
     _setupEventListeners() {
-        // SINGLE-SPEAKER FOCUS MODE:
-        // Only show the character who is currently speaking
-        // All other characters are hidden
-
-        // CHARACTER_SHOWN is ignored in focus mode - we only show speakers
-        // This prevents EpisodeManager's multi-character setup from interfering
+        // CHARACTER_SHOWN - for multi-character scenes
         this._eventBus.on(GameEvents.CHARACTER_SHOWN, (data) => {
-            // Ignored in focus mode - speaker events handle display
+            this.showCharacter(data.characterId);
         });
 
         this._eventBus.on(GameEvents.CHARACTER_HIDDEN, (data) => {
             this.hideCharacter(data.characterId);
         });
 
+        // CHARACTER_SPEAKING - highlight and animate speaker
         this._eventBus.on(GameEvents.CHARACTER_SPEAKING, (data) => {
-            // Focus mode: Show ONLY the speaking character
             this.focusOnCharacter(data.characterId);
         });
 
-        // Listen for scene changes
+        // Scene changes - hide all
         this._eventBus.on(GameEvents.SCENE_CHANGED, () => {
-            // Hide all characters on scene change
             this.hideAllCharacters();
         });
 
-        // Listen for dialogue completion
+        // Dialogue completion
         this._eventBus.on(GameEvents.DIALOGUE_COMPLETED, () => {
+            this._stopTalkingAnimation();
             this._speakingCharacter = null;
-            // Hide all characters when dialogue ends
             this.hideAllCharacters();
+        });
+    }
+
+    // ===== Animation Methods =====
+
+    /**
+     * Animate character entry with slide-in effect
+     */
+    _animateEntry(element, direction = 'left') {
+        if (typeof anime === 'undefined') return;
+
+        const startX = direction === 'left' ? -150 : 150;
+
+        // Reset element state
+        anime.remove(element);
+        element.style.opacity = '0';
+        element.style.transform = `translateX(${startX}px)`;
+
+        // Slide in with bounce
+        anime({
+            targets: element,
+            translateX: [startX, 0],
+            opacity: [0, 1],
+            scale: [0.9, 1],
+            duration: 600,
+            easing: 'easeOutBack'
+        });
+
+        // Play entry sound
+        if (typeof gameEffects !== 'undefined') {
+            gameEffects.playSound('click');
+        }
+    }
+
+    /**
+     * Animate character exit with fade-out
+     */
+    _animateExit(element, direction = 'left') {
+        if (typeof anime === 'undefined') return;
+
+        const endX = direction === 'left' ? -100 : 100;
+
+        anime({
+            targets: element,
+            translateX: [0, endX],
+            opacity: [1, 0],
+            scale: [1, 0.9],
+            duration: 400,
+            easing: 'easeInQuad',
+            complete: () => {
+                element.classList.add('hidden');
+            }
+        });
+    }
+
+    /**
+     * Start "Talk-and-Jump" animation for speaking character
+     */
+    _startTalkingAnimation(element) {
+        if (typeof anime === 'undefined') return;
+
+        // Stop any existing animation
+        this._stopTalkingAnimation();
+
+        // Subtle bouncing animation while talking
+        this._talkingAnimation = anime({
+            targets: element,
+            translateY: [0, -8, 0],
+            scale: [1, 1.02, 1],
+            duration: 600,
+            easing: 'easeInOutSine',
+            loop: true
+        });
+    }
+
+    /**
+     * Stop talking animation
+     */
+    _stopTalkingAnimation() {
+        if (this._talkingAnimation) {
+            this._talkingAnimation.pause();
+            this._talkingAnimation = null;
+        }
+    }
+
+    /**
+     * Animate brightness change
+     */
+    _animateBrightness(element, brightness) {
+        if (typeof anime === 'undefined') {
+            element.style.filter = `brightness(${brightness})`;
+            return;
+        }
+
+        anime({
+            targets: element,
+            filter: `brightness(${brightness})`,
+            duration: 300,
+            easing: 'easeOutQuad'
         });
     }
 
     // ===== Display Methods =====
 
     /**
-     * Show a character on screen
-     * @param {string} characterId - Character ID
-     * @param {Object} options - Display options
+     * Show a character with entry animation
      */
     showCharacter(characterId, options = {}) {
         const character = this._characters.get(characterId);
@@ -157,35 +237,38 @@ class CharacterDisplay {
         const element = document.getElementById(character.elementId);
         if (!element) return;
 
-        // Update image if needed
+        // Update image
         const img = element.querySelector('.vn-sprite-img');
         if (img && character.image) {
             img.src = character.image;
             img.alt = character.name;
         }
 
-        // Reset all state classes first
-        element.classList.remove('hidden', 'char-exit', 'char-enter', 'speaking', 'dimmed');
+        // Show element
+        element.classList.remove('hidden', 'char-exit');
 
-        // Force reflow to ensure animation plays
-        void element.offsetWidth;
+        // Play entry animation if first time
+        if (!character.hasEntered) {
+            this._animateEntry(element, character.entryDirection);
+            character.hasEntered = true;
+        } else {
+            // Fade in if already entered before
+            if (typeof anime !== 'undefined') {
+                anime({
+                    targets: element,
+                    opacity: [0, 1],
+                    duration: 300,
+                    easing: 'easeOutQuad'
+                });
+            }
+        }
 
-        // Show element with animation
-        element.classList.add('char-enter');
-
-        // Update character state
         character.visible = true;
         this._activeCharacters.add(characterId);
-
-        // Remove animation class after completion
-        setTimeout(() => {
-            element.classList.remove('char-enter');
-        }, this._config.transitionDuration);
     }
 
     /**
-     * Hide a character from screen
-     * @param {string} characterId - Character ID
+     * Hide a character with exit animation
      */
     hideCharacter(characterId) {
         const character = this._characters.get(characterId);
@@ -194,15 +277,13 @@ class CharacterDisplay {
         const element = document.getElementById(character.elementId);
         if (!element) return;
 
-        // Animate out
-        element.classList.add('char-exit');
+        // Stop talking animation if this character was speaking
+        if (this._speakingCharacter === characterId) {
+            this._stopTalkingAnimation();
+        }
 
-        setTimeout(() => {
-            element.classList.add('hidden');
-            element.classList.remove('char-exit');
-        }, this._config.transitionDuration);
+        this._animateExit(element, character.entryDirection);
 
-        // Update character state
         character.visible = false;
         this._activeCharacters.delete(characterId);
 
@@ -215,30 +296,44 @@ class CharacterDisplay {
      * Hide all characters
      */
     hideAllCharacters() {
+        this._stopTalkingAnimation();
         this._characters.forEach((char, id) => {
             if (char.visible) {
                 this.hideCharacter(id);
             }
+            // Reset entry state for next scene
+            char.hasEntered = false;
         });
     }
 
     /**
-     * Focus mode: Show ONLY the speaking character, hide all others
-     * @param {string} characterId - Character to focus on
+     * Focus on speaking character with Talk-and-Jump effect
      */
     focusOnCharacter(characterId) {
         const character = this._characters.get(characterId);
 
-        // Narrator has no sprite - hide all characters
+        // Narrator has no sprite
         if (characterId === 'narrator' || !character || !character.elementId) {
-            this.hideAllCharacters();
+            // Dim all visible characters for narrator
+            this._activeCharacters.forEach(id => {
+                const char = this._characters.get(id);
+                if (char && char.elementId) {
+                    const el = document.getElementById(char.elementId);
+                    if (el) {
+                        this._animateBrightness(el, 0.6);
+                        this._stopTalkingAnimation();
+                    }
+                }
+            });
             this._speakingCharacter = null;
             return;
         }
 
+        // Stop previous talking animation
+        this._stopTalkingAnimation();
         this._speakingCharacter = characterId;
 
-        // Hide all other characters, show only the focused one
+        // Update all characters
         this._characters.forEach((char, id) => {
             if (!char.elementId) return;
 
@@ -246,98 +341,81 @@ class CharacterDisplay {
             if (!element) return;
 
             if (id === characterId) {
-                // Show and center the focused character
-                element.classList.remove('hidden', 'char-exit', 'dimmed');
-                element.classList.add('char-enter', 'speaking', 'focus-mode');
-
-                // Update image
-                const img = element.querySelector('.vn-sprite-img');
-                if (img && char.image) {
-                    img.src = char.image;
-                    img.alt = char.name;
+                // Show speaking character if not visible
+                if (!char.visible) {
+                    element.classList.remove('hidden');
+                    this._animateEntry(element, char.entryDirection);
+                    char.visible = true;
+                    char.hasEntered = true;
+                    this._activeCharacters.add(id);
                 }
 
-                char.visible = true;
-                this._activeCharacters.add(id);
-
-                // Remove animation class after completion
-                setTimeout(() => {
-                    element.classList.remove('char-enter');
-                }, this._config.transitionDuration);
-            } else if (char.visible) {
-                // Hide other characters with fade out
-                element.classList.add('char-exit');
-                element.classList.remove('speaking', 'focus-mode');
-
-                setTimeout(() => {
-                    element.classList.add('hidden');
-                    element.classList.remove('char-exit');
-                }, this._config.transitionDuration);
-
-                char.visible = false;
-                this._activeCharacters.delete(id);
-            }
-        });
-    }
-
-    /**
-     * Set which character is speaking (highlights them, dims others)
-     * @param {string} characterId - Speaking character ID
-     */
-    setSpeaking(characterId) {
-        this._speakingCharacter = characterId;
-
-        // Update all visible characters
-        this._activeCharacters.forEach(id => {
-            const character = this._characters.get(id);
-            if (!character || !character.elementId) return;
-
-            const element = document.getElementById(character.elementId);
-            if (!element) return;
-
-            if (id === characterId) {
-                // Highlight speaking character
+                // Brighten and start talking animation
                 element.classList.add('speaking');
                 element.classList.remove('dimmed');
-            } else {
+                this._animateBrightness(element, 1);
+                this._startTalkingAnimation(element);
+
+                // Bring to front
+                element.style.zIndex = '10';
+
+            } else if (char.visible) {
                 // Dim non-speaking characters
                 element.classList.remove('speaking');
                 element.classList.add('dimmed');
+                this._animateBrightness(element, 0.7);
+                element.style.zIndex = '5';
+
+                // Move slightly back
+                if (typeof anime !== 'undefined') {
+                    anime({
+                        targets: element,
+                        scale: 0.95,
+                        duration: 300,
+                        easing: 'easeOutQuad'
+                    });
+                }
             }
         });
-
-        // Handle narrator (no character highlighted)
-        if (characterId === 'narrator') {
-            this._activeCharacters.forEach(id => {
-                const character = this._characters.get(id);
-                if (!character || !character.elementId) return;
-                const element = document.getElementById(character.elementId);
-                if (element) {
-                    element.classList.remove('speaking', 'dimmed');
-                }
-            });
-        }
     }
 
     /**
-     * Clear speaking state from all characters
+     * Set speaking character (alternative method)
+     */
+    setSpeaking(characterId) {
+        this.focusOnCharacter(characterId);
+    }
+
+    /**
+     * Clear speaking state
      */
     clearSpeaking() {
+        this._stopTalkingAnimation();
         this._speakingCharacter = null;
+
         this._activeCharacters.forEach(id => {
             const character = this._characters.get(id);
             if (!character || !character.elementId) return;
+
             const element = document.getElementById(character.elementId);
             if (element) {
                 element.classList.remove('speaking', 'dimmed');
+                this._animateBrightness(element, 1);
+
+                if (typeof anime !== 'undefined') {
+                    anime({
+                        targets: element,
+                        scale: 1,
+                        duration: 300,
+                        easing: 'easeOutQuad'
+                    });
+                }
             }
         });
     }
 
     /**
-     * Move character to a specific position
-     * @param {string} characterId - Character ID
-     * @param {string} position - 'left' | 'right' | 'center'
+     * Move character to position
      */
     moveCharacter(characterId, position) {
         const character = this._characters.get(characterId);
@@ -346,61 +424,23 @@ class CharacterDisplay {
         const element = document.getElementById(character.elementId);
         if (!element) return;
 
-        // Update position classes
-        element.classList.remove('position-left', 'position-right', 'position-center');
+        element.classList.remove('position-left', 'position-right', 'position-center', 'position-center-left');
         element.classList.add(`position-${position}`);
-
-        // Update character data
         character.position = position;
     }
 
     /**
-     * Get list of currently visible characters
-     * @returns {string[]}
+     * Get visible characters
      */
     getVisibleCharacters() {
         return Array.from(this._activeCharacters);
     }
 
     /**
-     * Check if character is currently visible
-     * @param {string} characterId - Character ID
-     * @returns {boolean}
+     * Check if character is visible
      */
     isVisible(characterId) {
         return this._activeCharacters.has(characterId);
-    }
-
-    /**
-     * Create character DOM elements dynamically
-     * @param {HTMLElement} container - Container element
-     */
-    createCharacterElements(container) {
-        if (!container) return;
-
-        this._characters.forEach((char, id) => {
-            if (!char.elementId || !char.image) return;
-
-            // Check if element already exists
-            if (document.getElementById(char.elementId)) return;
-
-            const charEl = document.createElement('div');
-            charEl.id = char.elementId;
-            charEl.className = `vn-character position-${char.position} hidden`;
-
-            const img = document.createElement('img');
-            img.className = 'vn-sprite-img';
-            img.src = char.image;
-            img.alt = char.name;
-
-            const nameEl = document.createElement('span');
-            nameEl.className = 'vn-char-name';
-            nameEl.textContent = char.name;
-
-            charEl.appendChild(img);
-            charEl.appendChild(nameEl);
-            container.appendChild(charEl);
-        });
     }
 }
 

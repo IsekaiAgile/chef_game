@@ -7,6 +7,176 @@
  * - Dependency Inversion: Uses EventBus for communication
  */
 
+// ===== BACKGROUND IMAGE CONSTANTS =====
+const BACKGROUNDS = {
+    EXTERIOR_NIGHT: 'exterior_night',  // 食堂前夜.png
+    INTERIOR_DINER: 'interior_diner'   // 食堂.png
+};
+
+// ===== SCENE IDENTIFIERS =====
+const SCENES = {
+    RESCUE: 'SCENE1_RESCUE',
+    KITCHEN: 'SCENE2_KITCHEN',
+    MASTER: 'SCENE3_MASTER',
+    START: 'SCENE5_START',
+    PERFECT_CYCLE: 'PERFECT_CYCLE',
+    STAGNATION_CRISIS: 'STAGNATION_CRISIS',
+    HYBRID_MOMENT: 'HYBRID_MOMENT'
+};
+
+// ===== 5-EPISODE CONFIGURATION =====
+const EPISODE_CONFIG = {
+    1: {
+        id: 1,
+        title: '第1話：新入りバイト',
+        subtitle: 'The New Hire at the Diner',
+        description: 'アジャイルの基本を学ぶ',
+        guest: null,
+        characters: ['mina', 'owner', 'fuji'],
+        modifiers: {
+            qualityDecayRate: 1.0,
+            orderFrequency: 1.0,
+            ingredientConsumption: 1
+        },
+        winCondition: {
+            type: 'growth_and_balance',
+            growth: 20,
+            balanced: true
+        },
+        lossCondition: {
+            type: 'stagnation',
+            stagnation: 100
+        }
+    },
+    2: {
+        id: 2,
+        title: '第2話：ゴブリン襲来！底なしの胃袋',
+        subtitle: 'Goblin Raid! The Bottomless Pit',
+        description: '食材切れ即ゲームオーバー！高頻度の注文に対応せよ',
+        guest: 'goblin',
+        characters: ['mina', 'owner', 'fuji', 'goblin'],
+        modifiers: {
+            qualityDecayRate: 1.0,
+            orderFrequency: 2.0,      // Orders come 2x faster
+            ingredientConsumption: 2  // Uses 2x ingredients per order
+        },
+        winCondition: {
+            type: 'survive_orders',
+            ordersCompleted: 10
+        },
+        lossCondition: {
+            type: 'ingredients_zero',  // SPECIAL: Ingredients = 0 = Game Over!
+            ingredients: 0
+        }
+    },
+    3: {
+        id: 3,
+        title: '第3話：ドラゴン猛襲！破壊者',
+        subtitle: 'Dragon Onslaught! The Destroyer',
+        description: '品質が2倍速で劣化！整備で厨房を安定させろ',
+        guest: 'dragonoid',
+        characters: ['mina', 'owner', 'fuji', 'dragonoid'],
+        modifiers: {
+            qualityDecayRate: 2.0,    // Quality decays 2x faster!
+            orderFrequency: 1.0,
+            ingredientConsumption: 1
+        },
+        winCondition: {
+            type: 'quality_survival',
+            minQuality: 30,
+            turnsToSurvive: 12
+        },
+        lossCondition: {
+            type: 'quality_zero',
+            quality: 0
+        }
+    },
+    4: {
+        id: 4,
+        title: '第4話：天才ライバル、スリモン登場！',
+        subtitle: 'The Genius Rival: Srimon Appears!',
+        description: '料理対決！ライバルの見えないスコアを超えろ',
+        guest: 'srimon',
+        characters: ['mina', 'owner', 'fuji', 'srimon'],
+        isRivalBattle: true,
+        modifiers: {
+            qualityDecayRate: 1.0,
+            orderFrequency: 1.0,
+            ingredientConsumption: 1
+        },
+        rivalConfig: {
+            baseGrowthPerTurn: 2,     // Rival gains 2 growth per turn
+            variability: 1,            // +/- 1 random
+            catchUpBonus: 0.5          // Gains 50% more when behind
+        },
+        winCondition: {
+            type: 'rival_battle',
+            turnsToWin: 15,
+            mustBeAhead: true
+        },
+        lossCondition: {
+            type: 'rival_ahead',
+            rivalLeadThreshold: 15     // Lose if rival is 15+ ahead
+        }
+    },
+    5: {
+        id: 5,
+        title: '最終話：食堂危機！わがまま姫',
+        subtitle: 'Diner in Crisis! The Tomboy Elf Princess',
+        description: '最終試練！学んだ全てを使い、姫の無理難題をクリアせよ',
+        guest: 'elfPrincess',
+        characters: ['mina', 'owner', 'fuji', 'elfPrincess'],
+        isFinalBoss: true,
+        modifiers: {
+            qualityDecayRate: 1.5,
+            orderFrequency: 1.5,
+            ingredientConsumption: 1,
+            demandChangeChance: 0.4    // 40% chance of demand change per turn
+        },
+        winCondition: {
+            type: 'final_satisfaction',
+            growth: 50,
+            princessSatisfaction: 100
+        },
+        lossCondition: {
+            type: 'princess_rage',
+            princessAnger: 100
+        }
+    }
+};
+
+// ===== GUEST CHARACTER DEFINITIONS =====
+const GUEST_CHARACTERS = {
+    goblin: {
+        id: 'goblin',
+        name: 'ゴブリン',
+        sprite: 'goblin.png',
+        personality: 'hungry',
+        catchphrase: 'もっと食わせろ！腹減った！'
+    },
+    dragonoid: {
+        id: 'dragonoid',
+        name: 'ドラゴノイド',
+        sprite: 'dragonoid.png',
+        personality: 'destructive',
+        catchphrase: '熱いのをよこせ！ぬるいと焼き尽くすぞ！'
+    },
+    srimon: {
+        id: 'srimon',
+        name: 'スリモン',
+        sprite: 'srimon.png',
+        personality: 'rival',
+        catchphrase: 'ふん、その程度か？僕の料理を見せてやる'
+    },
+    elfPrincess: {
+        id: 'elfPrincess',
+        name: 'エルフ姫',
+        sprite: 'elf_princess.png',
+        personality: 'demanding',
+        catchphrase: 'これじゃない！もっと...こう...キラキラした感じ！'
+    }
+};
+
 /**
  * @typedef {Object} EpisodeDefinition
  * @property {number} id - Episode ID
@@ -60,46 +230,141 @@ class EpisodeManager {
     // ===== Default Episodes =====
 
     _registerDefaultEpisodes() {
-        // Episode 1: The Beginning
-        this.registerEpisode({
-            id: 1,
-            title: '第1話：伝統を守りながら、変化を受け入れろ',
-            goals: {
-                growth: 20,
-                balanced: true
-            },
-            checkCompletion: (state) => {
-                return state.growth >= 20 && this._gameState.isBalanced();
-            }
-        });
-
-        // Episode 2: Special Customers
-        this.registerEpisode({
-            id: 2,
-            title: '第2話：無理難題！異世界の顧客に対応せよ',
-            goals: {
-                specialChallengeSuccess: 2
-            },
-            checkCompletion: (state) => {
-                return state.specialChallengeSuccess >= 2;
-            }
-        });
-
-        // Episode 3: Final Challenge
-        this.registerEpisode({
-            id: 3,
-            title: '最終話：老店主にアジャイルを認めさせろ！',
-            goals: {
-                growth: 50,
-                oldManMood: 80
-            },
-            checkCompletion: (state) => {
-                return state.growth >= 50 && state.oldManMood >= 80;
-            }
+        // Register all 5 episodes from EPISODE_CONFIG
+        Object.values(EPISODE_CONFIG).forEach(config => {
+            this.registerEpisode({
+                id: config.id,
+                title: config.title,
+                subtitle: config.subtitle,
+                description: config.description,
+                guest: config.guest,
+                characters: config.characters,
+                modifiers: config.modifiers,
+                winCondition: config.winCondition,
+                lossCondition: config.lossCondition,
+                isRivalBattle: config.isRivalBattle || false,
+                rivalConfig: config.rivalConfig || null,
+                isFinalBoss: config.isFinalBoss || false,
+                checkCompletion: (state) => this._checkEpisodeWin(config.id, state),
+                checkFailure: (state) => this._checkEpisodeLoss(config.id, state)
+            });
         });
 
         // Register default scenes
         this._registerDefaultScenes();
+    }
+
+    /**
+     * Check if episode win condition is met
+     * @param {number} episodeId - Episode ID
+     * @param {Object} state - Current game state
+     * @returns {boolean}
+     */
+    _checkEpisodeWin(episodeId, state) {
+        const config = EPISODE_CONFIG[episodeId];
+        if (!config) return false;
+
+        const win = config.winCondition;
+        switch (win.type) {
+            case 'growth_and_balance':
+                return state.growth >= win.growth && this._gameState.isBalanced();
+
+            case 'survive_orders':
+                return (state.ordersCompleted || 0) >= win.ordersCompleted;
+
+            case 'quality_survival':
+                return state.ingredientQuality >= win.minQuality &&
+                       state.day >= win.turnsToSurvive;
+
+            case 'rival_battle':
+                return state.day >= win.turnsToWin &&
+                       state.growth > (state.rivalGrowth || 0);
+
+            case 'final_satisfaction':
+                return state.growth >= win.growth &&
+                       (state.princessSatisfaction || 0) >= win.princessSatisfaction;
+
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Check if episode loss condition is met
+     * @param {number} episodeId - Episode ID
+     * @param {Object} state - Current game state
+     * @returns {boolean}
+     */
+    _checkEpisodeLoss(episodeId, state) {
+        const config = EPISODE_CONFIG[episodeId];
+        if (!config) return false;
+
+        const loss = config.lossCondition;
+        switch (loss.type) {
+            case 'stagnation':
+                return state.stagnation >= loss.stagnation;
+
+            case 'ingredients_zero':
+                return state.currentIngredients <= 0;
+
+            case 'quality_zero':
+                return state.ingredientQuality <= 0;
+
+            case 'rival_ahead':
+                const rivalLead = (state.rivalGrowth || 0) - state.growth;
+                return rivalLead >= loss.rivalLeadThreshold;
+
+            case 'princess_rage':
+                return (state.princessAnger || 0) >= loss.princessAnger;
+
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Get current episode's modifiers
+     * @returns {Object} Episode modifiers
+     */
+    getEpisodeModifiers() {
+        const episodeId = this._gameState.get('currentEpisode');
+        const config = EPISODE_CONFIG[episodeId];
+        return config ? config.modifiers : {
+            qualityDecayRate: 1.0,
+            orderFrequency: 1.0,
+            ingredientConsumption: 1
+        };
+    }
+
+    /**
+     * Get current episode's guest character
+     * @returns {Object|null} Guest character info
+     */
+    getEpisodeGuest() {
+        const episodeId = this._gameState.get('currentEpisode');
+        const config = EPISODE_CONFIG[episodeId];
+        if (!config || !config.guest) return null;
+        return GUEST_CHARACTERS[config.guest] || null;
+    }
+
+    /**
+     * Check if current episode is a rival battle
+     * @returns {boolean}
+     */
+    isRivalBattle() {
+        const episodeId = this._gameState.get('currentEpisode');
+        const config = EPISODE_CONFIG[episodeId];
+        return config ? config.isRivalBattle : false;
+    }
+
+    /**
+     * Get rival configuration for Episode 4
+     * @returns {Object|null}
+     */
+    getRivalConfig() {
+        const episodeId = this._gameState.get('currentEpisode');
+        const config = EPISODE_CONFIG[episodeId];
+        return config ? config.rivalConfig : null;
     }
 
     _registerDefaultScenes() {
@@ -215,29 +480,44 @@ class EpisodeManager {
     _playScene1Intro(onComplete) {
         const scene1 = this._sceneData.get('SCENE1_RESCUE');
 
-        // Opening scene: Fuji collapsed outside (食堂前夜.png)
+        // Opening scene: Fuji collapsed outside (食堂前夜.png - Exterior Night)
         this._eventBus.emit(GameEvents.SCENE_BACKGROUND_CHANGED, { scene: 'road' });
         this._eventBus.emit(GameEvents.CHARACTER_SHOWN, { characterId: 'mina' });
 
         this._dialogueSystem.start(scene1, 'intro', () => {
-            this._playScene2Kitchen(onComplete);
+            // Scene 1 complete - trigger fade-to-black transition
+            this._transitionToKitchen(onComplete);
+        });
+    }
+
+    /**
+     * Transition from Exterior Night to Interior Diner with fade-to-black
+     * @param {Function} onComplete - Callback when complete
+     */
+    _transitionToKitchen(onComplete) {
+        // Hide all characters before fade (they'll re-enter in the new scene)
+        this._eventBus.emit(GameEvents.CHARACTER_HIDDEN, { characterId: 'mina' });
+        this._eventBus.emit(GameEvents.CHARACTER_HIDDEN, { characterId: 'fuji' });
+        this._eventBus.emit(GameEvents.CHARACTER_HIDDEN, { characterId: 'owner' });
+
+        // Trigger fade-to-black transition to the warm diner interior
+        this._eventBus.emit('scene:fade_transition', {
+            toScene: BACKGROUNDS.INTERIOR_DINER,
+            onComplete: () => {
+                // After fade completes, play Scene 2 (Fuji wakes up)
+                this._playScene2Kitchen(onComplete);
+            }
         });
     }
 
     _playScene2Kitchen(onComplete) {
         const scene2 = this._sceneData.get('SCENE2_KITCHEN');
 
-        // Transition to diner interior (食堂.png) with fade effect
-        this._eventBus.emit(GameEvents.SCENE_BACKGROUND_CHANGED, { scene: 'restaurant' });
-
-        // Hide Mina first, then show both after background transition
-        this._eventBus.emit(GameEvents.CHARACTER_HIDDEN, { characterId: 'mina' });
-
-        // Delay character appearance for smoother transition
+        // Characters appear after fade-in (inside the warm diner)
         setTimeout(() => {
             this._eventBus.emit(GameEvents.CHARACTER_SHOWN, { characterId: 'fuji' });
             this._eventBus.emit(GameEvents.CHARACTER_SHOWN, { characterId: 'mina' });
-        }, 400);
+        }, 300);
 
         this._dialogueSystem.start(scene2, 'intro', () => {
             this._playScene3Master(onComplete);

@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>ネコノヒゲ：アジャイル厨房</title>
-    <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;900&display=swap" rel="stylesheet">
     <!-- anime.js for smooth animations -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-B4JeqHkT.css">
 </head>
 <body>
     <!-- ===== PAWAPURO SUCCESS MODE LAYOUT ===== -->
@@ -17,7 +17,7 @@
 
         <!-- LAYER 0: Full-Screen Background -->
         <div class="pawa-bg-layer">
-            <img src="食堂.png" alt="Kitchen Background" class="pawa-bg-image">
+            <img src="/assets/%E9%A3%9F%E5%A0%82-CJLLlvUQ.png" alt="Kitchen Background" class="pawa-bg-image">
             <div class="pawa-bg-overlay"></div>
         </div>
 
@@ -42,7 +42,7 @@
         <!-- LAYER 2: Central Hero Character (Fuji) - 80vh tall -->
         <div class="pawa-hero-layer" id="status-card">
             <div class="hero-container">
-                <img id="fuji-image" src="fuji1.png" alt="フジ" class="hero-sprite">
+                <img id="fuji-image" src="/assets/fuji1-BnEf80pV.png" alt="フジ" class="hero-sprite">
                 <!-- Floating Status Badges around hero -->
                 <div class="hero-badges">
                     <div class="hero-badge badge-quality">
@@ -86,43 +86,18 @@
             </div>
         </div>
 
-        <!-- LAYER 4: Floating Cycle Display (Combo Indicator) -->
+        <!-- LAYER 4: Floating Cycle Display -->
         <div class="pawa-cycle-float" id="combo-display">
             <div class="cycle-header">
                 <span class="cycle-icon">&#x1F504;</span>
-                <span class="cycle-title">アジャイルサイクル</span>
+                <span class="cycle-title">サイクル</span>
             </div>
-            <div class="cycle-progress">
-                <div class="cycle-step" id="cycle-step-1" data-step="1">
-                    <span class="step-icon">&#x1F373;</span>
-                    <span class="step-label">調理</span>
-                </div>
-                <div class="cycle-arrow">→</div>
-                <div class="cycle-step" id="cycle-step-2" data-step="2">
-                    <span class="step-icon">&#x1F527;</span>
-                    <span class="step-label">分析</span>
-                </div>
-                <div class="cycle-arrow">→</div>
-                <div class="cycle-step" id="cycle-step-3" data-step="3">
-                    <span class="step-icon">&#x1F465;</span>
-                    <span class="step-label">対話</span>
-                </div>
+            <div class="cycle-slots">
+                <div class="cycle-slot empty">?</div>
+                <div class="cycle-slot empty">?</div>
+                <div class="cycle-slot empty">?</div>
             </div>
-            <div class="cycle-counter" id="cycle-counter">
-                <span class="counter-text">進捗: </span>
-                <span class="counter-value" id="cycle-count">0</span>
-                <span class="counter-text">/3</span>
-            </div>
-            <div class="cycle-hint" id="cycle-hint">3種類のアクションで完璧なサイクル！</div>
-        </div>
-
-        <!-- PERFECT AGILE Celebration Overlay -->
-        <div id="perfect-agile-overlay" class="perfect-overlay hidden">
-            <div class="perfect-content">
-                <div class="perfect-star">⭐</div>
-                <div class="perfect-text">PERFECT AGILE!</div>
-                <div class="perfect-subtext">完璧なサイクル達成！</div>
-            </div>
+            <div class="cycle-hint" id="cycle-hint"></div>
         </div>
 
         <!-- LAYER 5: Floating Balance Bar -->
@@ -234,19 +209,17 @@
             <div class="vn-background-layer">
                 <div id="vn-bg-current" class="vn-bg"></div>
                 <div id="vn-bg-next" class="vn-bg"></div>
-                <!-- Fade-to-Black overlay for scene transitions -->
-                <div id="vn-fade-overlay" class="vn-fade-overlay"></div>
             </div>
 
             <div class="vn-character-layer">
                 <div id="vn-char-mina" class="vn-character position-left hidden">
-                    <img src="ミナ.png" alt="ミナ" class="vn-sprite-img">
+                    <img src="/assets/%E3%83%9F%E3%83%8A-uOds_vdu.png" alt="ミナ" class="vn-sprite-img">
                 </div>
                 <div id="vn-char-fuji" class="vn-character position-center-left hidden">
-                    <img src="fuji1.png" alt="フジ" class="vn-sprite-img">
+                    <img src="/assets/fuji1-BnEf80pV.png" alt="フジ" class="vn-sprite-img">
                 </div>
                 <div id="vn-char-owner" class="vn-character position-right hidden">
-                    <img src="親父.png" alt="老店主" class="vn-sprite-img">
+                    <img src="/assets/%E8%A6%AA%E7%88%B6-B3ejqnbn.png" alt="老店主" class="vn-sprite-img">
                 </div>
             </div>
 
@@ -319,136 +292,11 @@
         <!-- Mina Tip Modal -->
         <div id="mina-tip-modal" class="hidden overlay-screen mina-overlay">
             <div class="overlay-content mina-tip-content">
-                <img src="ミナ.png" alt="ミナ" class="mina-avatar">
+                <img src="/assets/%E3%83%9F%E3%83%8A-uOds_vdu.png" alt="ミナ" class="mina-avatar">
                 <div class="mina-name">ミナ</div>
                 <p id="mina-tip-text"></p>
                 <button class="pawa-btn-primary" id="mina-tip-close">ありがとう！</button>
             </div>
-        </div>
-
-        <!-- ===== AGILE CEREMONY OVERLAYS ===== -->
-
-        <!-- Phase Transition Telop -->
-        <div id="phase-telop" class="phase-telop hidden">
-            <div class="telop-content">
-                <div class="telop-icon" id="telop-icon">&#x2600;</div>
-                <div class="telop-text" id="telop-text">PLANNING PHASE</div>
-                <div class="telop-subtext" id="telop-subtext">毎朝の作戦会議</div>
-            </div>
-        </div>
-
-        <!-- Morning Stand-up Overlay -->
-        <div id="morning-standup" class="hidden ceremony-overlay morning-overlay">
-            <div class="ceremony-bg morning-bg"></div>
-            <div class="ceremony-content">
-                <div class="ceremony-header">
-                    <div class="ceremony-badge morning-badge">
-                        <span class="badge-icon">&#x2600;</span>
-                        <span class="badge-text">DAILY STAND-UP</span>
-                    </div>
-                    <div class="ceremony-day">DAY <span id="standup-day">1</span></div>
-                </div>
-
-                <div class="ceremony-dialogue" id="standup-dialogue">
-                    <!-- Dialogue will be inserted here -->
-                </div>
-
-                <div class="focus-selection">
-                    <div class="focus-header">今日の方針を選べ</div>
-                    <div class="focus-options">
-                        <button class="focus-btn focus-quality" data-focus="quality">
-                            <span class="focus-icon">&#x2728;</span>
-                            <span class="focus-name">品質重視</span>
-                            <span class="focus-desc">調理の成功率+10%</span>
-                        </button>
-                        <button class="focus-btn focus-speed" data-focus="speed">
-                            <span class="focus-icon">&#x26A1;</span>
-                            <span class="focus-name">スピード重視</span>
-                            <span class="focus-desc">調理で食材消費なし</span>
-                        </button>
-                        <button class="focus-btn focus-experiment" data-focus="experiment">
-                            <span class="focus-icon">&#x1F52C;</span>
-                            <span class="focus-name">新しい挑戦</span>
-                            <span class="focus-desc">停滞リセット（リスクあり）</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Night Retrospective Overlay -->
-        <div id="night-retro" class="hidden ceremony-overlay night-overlay">
-            <div class="ceremony-bg night-bg"></div>
-            <div class="ceremony-content">
-                <div class="ceremony-header">
-                    <div class="ceremony-badge night-badge">
-                        <span class="badge-icon">&#x1F319;</span>
-                        <span class="badge-text">RETROSPECTIVE</span>
-                    </div>
-                    <div class="ceremony-day">DAY <span id="retro-day">1</span> 終了</div>
-                </div>
-
-                <div class="retro-summary">
-                    <div class="summary-title">今日の振り返り</div>
-                    <div class="summary-grid">
-                        <div class="summary-item">
-                            <span class="summary-label">成長</span>
-                            <span class="summary-value" id="retro-growth">+0</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">品質</span>
-                            <span class="summary-value" id="retro-quality">+0</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">停滞</span>
-                            <span class="summary-value" id="retro-stagnation">+0</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">機嫌</span>
-                            <span class="summary-value" id="retro-mood">+0</span>
-                        </div>
-                    </div>
-                    <div class="summary-focus">
-                        <span>今日の方針：</span>
-                        <span id="retro-focus">-</span>
-                    </div>
-                </div>
-
-                <!-- Pivot Decision (shown conditionally) -->
-                <div id="pivot-decision" class="pivot-decision hidden">
-                    <div class="pivot-warning">
-                        <span class="pivot-icon">&#x26A0;</span>
-                        <span class="pivot-text">同じアクションが2回失敗...</span>
-                    </div>
-                    <div class="pivot-question">アプローチを変えるべき？</div>
-                    <div class="pivot-options">
-                        <button class="pivot-btn pivot-change" id="pivot-yes">
-                            <span class="pivot-btn-icon">&#x1F504;</span>
-                            <span class="pivot-btn-text">ダメならやめる</span>
-                            <span class="pivot-btn-effect">成長-5、負債-10、明日成功率UP</span>
-                        </button>
-                        <button class="pivot-btn pivot-continue" id="pivot-no">
-                            <span class="pivot-btn-icon">&#x27A1;</span>
-                            <span class="pivot-btn-text">このまま続行</span>
-                            <span class="pivot-btn-effect">変更なし</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Retro Complete Button -->
-                <div class="retro-complete">
-                    <div class="retro-lesson" id="retro-lesson">
-                        「明日はもっと上手くやれる」
-                    </div>
-                    <button class="pawa-btn-primary" id="retro-continue">次の日へ</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Actions Remaining Indicator -->
-        <div id="actions-remaining" class="actions-remaining hidden">
-            <span class="remaining-label">残りアクション</span>
-            <span class="remaining-count" id="remaining-count">3</span>
         </div>
     </div>
 
@@ -458,11 +306,9 @@
     <script src="js/systems/DialogueSystem.js"></script>
     <script src="js/systems/KitchenEngine.js"></script>
     <script src="js/systems/EpisodeManager.js"></script>
-    <script src="js/systems/CeremonyManager.js"></script>
     <script src="js/ui/CharacterDisplay.js"></script>
     <script src="js/ui/DialogueUIRenderer.js"></script>
     <script src="js/ui/GameUIRenderer.js"></script>
-    <script src="js/ui/CeremonyUIRenderer.js"></script>
     <script src="js/ui/GameEffects.js"></script>
     <script src="js/main.js"></script>
 </body>

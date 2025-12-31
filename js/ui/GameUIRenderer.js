@@ -41,6 +41,7 @@ class GameUIRenderer {
         this._eventBus.on(GameEvents.GAME_VICTORY, this._onVictory.bind(this));
         this._eventBus.on(GameEvents.EPISODE_COMPLETED, this._onEpisodeCompleted.bind(this));
         this._eventBus.on(GameEvents.PERFECT_CYCLE, this._onPerfectCycle.bind(this));
+        this._eventBus.on('action:critical_success', this._onCriticalSuccess.bind(this));
     }
 
     // ===== Event Handlers =====
@@ -101,15 +102,50 @@ class GameUIRenderer {
     }
 
     _onPerfectCycle(data) {
-        // Show big floating text for perfect cycle
-        this._spawnFloatingText('PERFECT CYCLE!', 'perfect', window.innerWidth / 2, window.innerHeight / 2);
+        // Screen shake effect
+        const gameContainer = document.getElementById('game-container');
+        if (gameContainer) {
+            gameContainer.classList.add('screen-shake');
+            setTimeout(() => gameContainer.classList.remove('screen-shake'), 500);
+        }
 
-        // Make cycle slots pulse
-        const slots = document.querySelectorAll('.cycle-slot');
-        slots.forEach(slot => {
-            slot.classList.add('perfect');
-            setTimeout(() => slot.classList.remove('perfect'), 2000);
+        // Show PERFECT AGILE overlay
+        const overlay = document.getElementById('perfect-agile-overlay');
+        if (overlay) {
+            overlay.classList.remove('hidden');
+            setTimeout(() => overlay.classList.add('hidden'), 2500);
+        }
+
+        // Make all cycle steps pulse with perfect state
+        const steps = document.querySelectorAll('.cycle-step');
+        steps.forEach(step => {
+            step.classList.add('perfect');
+            setTimeout(() => step.classList.remove('perfect'), 2000);
         });
+
+        // Trigger Mina's cheer
+        this._eventBus.emit('mina:cheer_perfect_cycle', {
+            message: 'すごい、フジくん！完璧なアジャイルサイクルだよ！'
+        });
+    }
+
+    _onCriticalSuccess(data) {
+        // Screen shake for critical success
+        const gameContainer = document.getElementById('game-container');
+        if (gameContainer) {
+            gameContainer.classList.add('screen-shake');
+            setTimeout(() => gameContainer.classList.remove('screen-shake'), 400);
+        }
+
+        // Show critical success floating text
+        this._spawnFloatingText('🌟 CRITICAL!', 'perfect', window.innerWidth / 2, window.innerHeight / 3);
+
+        // Add glow effect to result panel
+        const resultPanel = document.querySelector('.pawa-result-panel');
+        if (resultPanel) {
+            resultPanel.classList.add('critical-glow');
+            setTimeout(() => resultPanel.classList.remove('critical-glow'), 1500);
+        }
     }
 
     // ===== Floating Text Effects =====
@@ -251,42 +287,48 @@ class GameUIRenderer {
     }
 
     _renderCycleDisplay(state) {
-        const comboEl = document.getElementById('combo-display');
-        if (!comboEl) return;
-
         const { actionHistory, perfectCycleCount } = state;
         const isPerfect = this._isPerfectCycle(actionHistory);
         const missingActions = this._getMissingActions(actionHistory);
 
-        // Build cycle slots
-        let slotsHtml = '';
-        for (let i = 0; i < 3; i++) {
-            const actualIndex = Math.max(0, actionHistory.length - 3) + i;
-            if (actualIndex < actionHistory.length && actionHistory.length > i) {
-                const act = actionHistory[actualIndex];
-                const slotClass = isPerfect ? 'cycle-slot filled perfect' : 'cycle-slot filled';
-                slotsHtml += `<div class="${slotClass}">${this._config.actionIcons[act]}</div>`;
-            } else {
-                slotsHtml += '<div class="cycle-slot empty">?</div>';
+        // Get last 3 actions to determine which steps are completed
+        const lastThree = actionHistory.slice(-3);
+        const completedActions = new Set(lastThree);
+        const uniqueCount = completedActions.size;
+
+        // Update step indicators (1=調理, 2=分析, 3=対話)
+        for (let i = 1; i <= 3; i++) {
+            const stepEl = document.getElementById(`cycle-step-${i}`);
+            if (stepEl) {
+                stepEl.classList.remove('completed', 'perfect');
+                if (completedActions.has(i)) {
+                    stepEl.classList.add('completed');
+                    if (isPerfect) {
+                        stepEl.classList.add('perfect');
+                    }
+                }
             }
         }
 
-        // Build hint
-        let hintHtml = '';
-        if (isPerfect) {
-            hintHtml = `<span style="color: var(--sim-yellow);">パーフェクトサイクル！${perfectCycleCount > 1 ? ` ${perfectCycleCount}連続！` : ''}</span>`;
-        } else if (actionHistory.length >= 2 && missingActions.length === 1) {
-            hintHtml = `次は「${this._config.actionNames[missingActions[0]]}」でパーフェクト！`;
+        // Update counter display
+        const cycleCountEl = document.getElementById('cycle-count');
+        if (cycleCountEl) {
+            cycleCountEl.textContent = uniqueCount;
         }
 
-        comboEl.innerHTML = `
-            <div class="cycle-header">
-                <span class="cycle-icon">🔄</span>
-                <span class="cycle-title">スプリントサイクル</span>
-            </div>
-            <div class="cycle-slots">${slotsHtml}</div>
-            <div class="cycle-hint" id="cycle-hint">${hintHtml}</div>
-        `;
+        // Update hint text
+        const hintEl = document.getElementById('cycle-hint');
+        if (hintEl) {
+            if (isPerfect) {
+                hintEl.innerHTML = `<span class="hint-perfect">パーフェクト！${perfectCycleCount > 1 ? ` ${perfectCycleCount}連続！` : ''}</span>`;
+            } else if (uniqueCount >= 2 && missingActions.length === 1) {
+                hintEl.innerHTML = `次は「<strong>${this._config.actionNames[missingActions[0]]}</strong>」でパーフェクト！`;
+            } else if (uniqueCount === 1) {
+                hintEl.textContent = 'あと2種類のアクションでサイクル完成！';
+            } else {
+                hintEl.textContent = '3種類のアクションで完璧なサイクル！';
+            }
+        }
     }
 
     _renderChallenge(state) {

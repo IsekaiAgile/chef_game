@@ -24,12 +24,14 @@ class DialogueUIRenderer {
             minaTipModal: elements.minaTipModal || 'mina-tip-modal',
             minaTipText: elements.minaTipText || 'mina-tip-text',
             bgCurrent: elements.bgCurrent || 'vn-bg-current',
-            bgNext: elements.bgNext || 'vn-bg-next'
+            bgNext: elements.bgNext || 'vn-bg-next',
+            fadeOverlay: elements.fadeOverlay || 'vn-fade-overlay'
         };
 
         this._currentScene = null;
         this._currentBackground = null;
         this._isTransitioning = false;
+        this._isFading = false;
         this._setupEventListeners();
     }
 
@@ -43,6 +45,9 @@ class DialogueUIRenderer {
         // Scene events
         this._eventBus.on(GameEvents.SCENE_CHANGED, this._onSceneChanged.bind(this));
         this._eventBus.on(GameEvents.SCENE_BACKGROUND_CHANGED, this._onBackgroundChanged.bind(this));
+
+        // Scene transition with fade-to-black
+        this._eventBus.on('scene:fade_transition', this._onFadeTransition.bind(this));
 
         // Choice events
         this._eventBus.on(GameEvents.CHOICE_PRESENTED, this._onChoicePresented.bind(this));
@@ -198,6 +203,71 @@ class DialogueUIRenderer {
         }
     }
 
+    /**
+     * Handle fade-to-black scene transition
+     * @param {Object} data - { toScene: string, onComplete: Function }
+     */
+    _onFadeTransition(data) {
+        if (this._isFading) return;
+        this._isFading = true;
+
+        const fadeOverlay = this._getElement('fadeOverlay');
+        const { toScene, onComplete } = data;
+
+        // Map scene names to background classes
+        const sceneToBackground = {
+            'exterior_night': 'bg-night-street',
+            'road': 'bg-night-street',
+            'rescue': 'bg-night-street',
+            'interior_diner': 'bg-diner',
+            'restaurant': 'bg-diner',
+            'kitchen': 'bg-diner'
+        };
+
+        const newBgClass = sceneToBackground[toScene] || 'bg-diner';
+
+        if (!fadeOverlay) {
+            // Fallback: just switch background without fade
+            this._crossfadeBackground(newBgClass);
+            if (onComplete) setTimeout(onComplete, 500);
+            this._isFading = false;
+            return;
+        }
+
+        // Step 1: Fade to black (0.5s)
+        fadeOverlay.classList.add('fade-in');
+
+        setTimeout(() => {
+            // Step 2: Switch background while hidden
+            const bgCurrent = this._getElement('bgCurrent');
+            if (bgCurrent) {
+                bgCurrent.className = 'vn-bg ' + newBgClass;
+                bgCurrent.style.opacity = '1';
+            }
+            this._currentBackground = newBgClass;
+
+            // Step 3: Fade back in (0.5s delay, then remove fade)
+            setTimeout(() => {
+                fadeOverlay.classList.remove('fade-in');
+
+                // Complete transition
+                setTimeout(() => {
+                    this._isFading = false;
+                    if (onComplete) onComplete();
+                }, 500);
+            }, 300);
+        }, 500);
+    }
+
+    /**
+     * Perform fade-to-black transition (public method)
+     * @param {string} toScene - Scene name to transition to
+     * @param {Function} onComplete - Callback when complete
+     */
+    fadeTransition(toScene, onComplete) {
+        this._eventBus.emit('scene:fade_transition', { toScene, onComplete });
+    }
+
     _onChoicePresented(data) {
         // Hide VN overlay and show choice overlay
         const vnOverlay = this._getElement('overlay');
@@ -262,6 +332,19 @@ class DialogueUIRenderer {
     }
 
     /**
+     * Show Mina tip/cheer modal
+     * @param {string} message - Message to display
+     */
+    showMinaTip(message) {
+        const modal = this._getElement('minaTipModal');
+        const textEl = document.getElementById('mina-tip-text');
+        if (modal && textEl) {
+            textEl.textContent = message;
+            modal.classList.remove('hidden');
+        }
+    }
+
+    /**
      * Setup click handler for dialogue advancement
      * @param {Function} advanceCallback - Function to call on click
      */
@@ -274,6 +357,10 @@ class DialogueUIRenderer {
         if (clickLayer) {
             clickLayer.addEventListener('click', (e) => {
                 e.stopPropagation();
+                // Play dialogue advance sound
+                if (typeof gameEffects !== 'undefined') {
+                    gameEffects.playDialogueAdvance();
+                }
                 advanceCallback();
             });
         }

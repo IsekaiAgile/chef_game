@@ -37,6 +37,18 @@ class GameState {
             hybridMomentTriggered: false,
             hasChefKnife: false,
 
+            // Episode 2 specific (Goblin - orders)
+            ordersCompleted: 0,
+
+            // Episode 4 specific (Rival battle)
+            rivalGrowth: 0,
+            rivalName: 'スリモン',
+
+            // Episode 5 specific (Elf Princess)
+            princessSatisfaction: 0,
+            princessAnger: 0,
+            currentDemand: null,
+
             // Story state
             introComplete: false,
             playerChoice: null, // 'obedient' or 'agile'
@@ -44,7 +56,12 @@ class GameState {
             // Action tracking
             lastAction: 0,
             actionHistory: [],
-            perfectCycleCount: 0
+            perfectCycleCount: 0,
+
+            // Ceremony system
+            dailyFocus: null,
+            dailyFocusEffect: null,
+            pivotBonus: false
         };
     }
 
@@ -135,24 +152,58 @@ class GameState {
     }
 
     /**
-     * Check if game is over
+     * Check if game is over (episode-specific)
      * @returns {boolean}
      */
     isGameOver() {
-        return (
-            this._state.stagnation >= 90 ||
-            this._state.ingredientQuality <= 0 ||
-            this._state.oldManMood <= 0
-        );
+        const state = this._state;
+
+        // Universal conditions
+        if (state.stagnation >= 100) return true;
+        if (state.oldManMood <= 0) return true;
+
+        // Episode-specific loss conditions
+        switch (state.currentEpisode) {
+            case 2: // Goblin - Ingredients = 0 is instant game over
+                if (state.currentIngredients <= 0) return true;
+                break;
+            case 3: // Dragonoid - Quality = 0 is instant game over
+                if (state.ingredientQuality <= 0) return true;
+                break;
+            case 4: // Rival battle - Rival 15+ ahead = loss
+                if ((state.rivalGrowth - state.growth) >= 15) return true;
+                break;
+            case 5: // Elf Princess - Princess anger = 100 is game over
+                if (state.princessAnger >= 100) return true;
+                break;
+            default: // Episode 1 - Standard quality check
+                if (state.ingredientQuality <= 0) return true;
+        }
+
+        return false;
     }
 
     /**
-     * Check if game is won
+     * Check if game is won (episode-specific)
      * @returns {boolean}
      */
     isVictory() {
-        const { currentEpisode, growth, maxGrowth, oldManMood } = this._state;
-        return currentEpisode === 3 && growth >= maxGrowth && oldManMood >= 80;
+        const state = this._state;
+
+        switch (state.currentEpisode) {
+            case 1: // Growth 20+ and balanced
+                return state.growth >= 20 && this.isBalanced();
+            case 2: // Complete 10 orders
+                return state.ordersCompleted >= 10;
+            case 3: // Survive 12 days with quality >= 30
+                return state.day >= 12 && state.ingredientQuality >= 30;
+            case 4: // After 15 turns, be ahead of rival
+                return state.day >= 15 && state.growth > state.rivalGrowth;
+            case 5: // Final victory - Growth 50+ and princess satisfied
+                return state.growth >= 50 && state.princessSatisfaction >= 100;
+            default:
+                return false;
+        }
     }
 
     /**
@@ -181,12 +232,41 @@ class GameState {
      * @param {number} episodeNumber - Episode number
      */
     startEpisode(episodeNumber) {
-        this.update({
+        // Base episode reset
+        const updates = {
             currentEpisode: episodeNumber,
+            day: 1,
             specialChallengeSuccess: 0,
             traditionScore: 50,
-            hybridMomentTriggered: false
-        });
+            hybridMomentTriggered: false,
+            stagnation: 50,
+            growth: 0,
+            technicalDebt: 0,
+            oldManMood: 70,
+            ingredientQuality: 50,
+            currentIngredients: 3
+        };
+
+        // Episode-specific initialization
+        switch (episodeNumber) {
+            case 2: // Goblin - more starting ingredients
+                updates.currentIngredients = 5;
+                updates.ordersCompleted = 0;
+                break;
+            case 3: // Dragonoid - higher starting quality
+                updates.ingredientQuality = 70;
+                break;
+            case 4: // Rival battle - reset rival score
+                updates.rivalGrowth = 0;
+                break;
+            case 5: // Elf Princess - reset satisfaction/anger
+                updates.princessSatisfaction = 0;
+                updates.princessAnger = 0;
+                updates.currentDemand = null;
+                break;
+        }
+
+        this.update(updates);
 
         this._eventBus.emit(GameEvents.EPISODE_STARTED, {
             episode: episodeNumber

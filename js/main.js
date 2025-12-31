@@ -18,11 +18,13 @@ class GameApp {
         this._dialogueSystem = null;
         this._kitchenEngine = null;
         this._episodeManager = null;
+        this._ceremonyManager = null;
 
         // UI Renderers
         this._characterDisplay = null;
         this._gameUIRenderer = null;
         this._dialogueUIRenderer = null;
+        this._ceremonyUIRenderer = null;
 
         // State flags
         this._isInitialized = false;
@@ -61,6 +63,12 @@ class GameApp {
             this._gameState
         );
 
+        // 5b. Wire EpisodeManager to KitchenEngine for episode modifiers
+        this._kitchenEngine.setEpisodeManager(this._episodeManager);
+
+        // 5c. Create CeremonyManager (depends on EventBus, GameState)
+        this._ceremonyManager = new CeremonyManager(this._eventBus, this._gameState);
+
         // 6. Create UI Renderers (depend on EventBus)
         // CharacterDisplay handles sprite showing/hiding/dimming (SRP)
         this._characterDisplay = new CharacterDisplay(this._eventBus);
@@ -71,6 +79,9 @@ class GameApp {
 
         // DialogueUIRenderer only handles dialogue box (SRP)
         this._dialogueUIRenderer = new DialogueUIRenderer(this._eventBus);
+
+        // CeremonyUIRenderer handles ceremony overlays
+        this._ceremonyUIRenderer = new CeremonyUIRenderer(this._eventBus);
 
         // 7. Setup global event handlers
         this._setupGlobalEvents();
@@ -91,13 +102,36 @@ class GameApp {
             document.body.classList.add('vn-active');
         });
 
-        // Intro completion - show game UI
+        // Perfect cycle - play celebration effect
+        this._eventBus.on(GameEvents.PERFECT_CYCLE, () => {
+            if (typeof gameEffects !== 'undefined') {
+                gameEffects.playPerfectCycle();
+            }
+        });
+
+        // Mina cheer on perfect cycle
+        this._eventBus.on('mina:cheer_perfect_cycle', (data) => {
+            this._dialogueUIRenderer.showMinaTip(data.message);
+        });
+
+        // Intro completion - start first day with Morning Stand-up
         this._eventBus.on(GameEvents.INTRO_COMPLETED, () => {
             document.body.classList.remove('vn-active');
             this._dialogueUIRenderer.hideOverlay();
             this._characterDisplay.hideAllCharacters();
             this._gameUIRenderer.showGameUI();
             this._gameUIRenderer.update(this._gameState.getState());
+
+            // Start the ceremony system with Day 1 Morning Stand-up
+            setTimeout(() => {
+                this._ceremonyManager.startNewDay();
+            }, 500);
+        });
+
+        // Action phase start - show action buttons
+        this._eventBus.on('ceremony:action_phase_start', () => {
+            const commandMenu = document.querySelector('.pawa-command-menu');
+            if (commandMenu) commandMenu.style.display = '';
         });
 
         // Dialogue completion during gameplay - restore HUD
@@ -185,6 +219,43 @@ class GameApp {
         const continueBtn = document.getElementById('continue-ep2');
         if (continueBtn) {
             continueBtn.addEventListener('click', () => this.startEpisode(2));
+        }
+
+        // ===== CEREMONY SYSTEM BUTTONS =====
+
+        // Daily Focus selection buttons (Morning Stand-up)
+        document.querySelectorAll('[data-focus]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const focusId = e.currentTarget.dataset.focus;
+                this._ceremonyManager.selectDailyFocus(focusId);
+            });
+        });
+
+        // Pivot decision buttons (Night Retrospective)
+        const pivotYes = document.getElementById('pivot-yes');
+        const pivotNo = document.getElementById('pivot-no');
+
+        if (pivotYes) {
+            pivotYes.addEventListener('click', () => {
+                this._ceremonyManager.handlePivotChoice(true);
+            });
+        }
+        if (pivotNo) {
+            pivotNo.addEventListener('click', () => {
+                this._ceremonyManager.handlePivotChoice(false);
+            });
+        }
+
+        // Retrospective continue button
+        const retroContinue = document.getElementById('retro-continue');
+        if (retroContinue) {
+            retroContinue.addEventListener('click', () => {
+                this._ceremonyUIRenderer.hideNightRetro();
+                // Start next day's morning stand-up
+                setTimeout(() => {
+                    this._ceremonyManager.proceedToNextDay();
+                }, 300);
+            });
         }
     }
 

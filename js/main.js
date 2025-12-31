@@ -140,6 +140,11 @@ class GameApp {
             this._gameUIRenderer.showGameUI();
             this._gameUIRenderer.update(this._gameState.getState());
 
+            // CRITICAL: Hide command menu BEFORE ceremony starts
+            // It will be shown again when ACTION phase begins
+            const commandMenu = document.querySelector('.pawa-command-menu');
+            if (commandMenu) commandMenu.style.display = 'none';
+
             // Start the ceremony system with Day 1 Morning Stand-up
             setTimeout(() => {
                 this._ceremonyManager.startNewDay();
@@ -379,6 +384,13 @@ class GameApp {
     executeAction(actionId) {
         // Don't execute during dialogue
         if (this._dialogueSystem.isActive()) {
+            return;
+        }
+
+        // CRITICAL: Only execute actions during ACTION phase
+        // This prevents actions during Morning Stand-up or Night Retro
+        if (!this._ceremonyManager.isActionPhase()) {
+            console.warn('GameApp: Cannot execute action - not in ACTION phase');
             return;
         }
 

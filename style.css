@@ -2804,3 +2804,218 @@ body {
         font-size: 2.5rem;
     }
 }
+
+/* ===== MOBILE-FIRST RESPONSIVE IMPROVEMENTS ===== */
+/* 2026 New Year Update: Ensuring game works on all devices */
+
+/* Safe area insets for notched phones */
+@supports (padding-top: env(safe-area-inset-top)) {
+    #game-container {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+}
+
+/* Ensure game container fills viewport properly */
+#game-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile browsers */
+    overflow: hidden;
+}
+
+/* Hero sprite improvements - always visible */
+.hero-sprite {
+    object-fit: contain;
+    object-position: bottom center;
+}
+
+/* Very small screens (iPhone SE, etc.) */
+@media (max-width: 375px) {
+    .hero-sprite {
+        height: 50vh;
+        max-height: 300px;
+        min-height: 200px;
+    }
+
+    .pawa-top-hud {
+        height: 45px;
+    }
+
+    .pawa-cmd-btn {
+        width: 65px;
+        height: 52px;
+    }
+
+    .pawa-cmd-btn .cmd-icon {
+        font-size: 1.3rem;
+    }
+
+    .pawa-cmd-btn .cmd-text {
+        font-size: 0.65rem;
+    }
+
+    /* Ceremony overlay adjustments */
+    .ceremony-content {
+        padding: 12px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .focus-selection {
+        gap: 8px;
+    }
+
+    .focus-btn {
+        padding: 8px;
+    }
+
+    .focus-icon {
+        width: 35px;
+        height: 35px;
+        font-size: 1.2rem;
+    }
+
+    .focus-text h4 {
+        font-size: 0.9rem;
+    }
+
+    .focus-text p {
+        font-size: 0.7rem;
+    }
+}
+
+/* VN Control buttons - always visible on mobile */
+@media (max-width: 768px) {
+    .vn-control-buttons {
+        top: 10px;
+        right: 10px;
+        gap: 6px;
+    }
+
+    .vn-control-btn {
+        padding: 6px 10px;
+        font-size: 0.7rem;
+    }
+
+    /* Ensure VN overlay is scrollable on small screens */
+    #vn-overlay {
+        overflow-y: auto;
+    }
+
+    .vn-dialogue-box {
+        max-height: 40vh;
+        overflow-y: auto;
+    }
+}
+
+/* Landscape mode on mobile */
+@media (max-height: 450px) and (orientation: landscape) {
+    .hero-sprite {
+        height: 50vh;
+        max-height: 200px;
+    }
+
+    .pawa-top-hud {
+        height: 35px;
+    }
+
+    .pawa-command-menu {
+        top: 40px;
+    }
+
+    .pawa-cmd-btn {
+        width: 60px;
+        height: 45px;
+    }
+
+    .ceremony-content {
+        max-height: 85vh;
+        padding: 10px;
+    }
+
+    .ceremony-header {
+        margin-bottom: 8px;
+    }
+
+    .focus-selection {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .focus-btn {
+        flex: 1 1 45%;
+        padding: 8px;
+    }
+}
+
+/* Ensure actions remaining indicator is visible */
+.actions-remaining {
+    z-index: 300;
+}
+
+/* Ceremony overlay mobile improvements */
+@media (max-width: 480px) {
+    .ceremony-day {
+        font-size: 1.1rem;
+    }
+
+    .ceremony-badge {
+        padding: 6px 12px;
+        font-size: 0.75rem;
+    }
+
+    .summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .summary-item {
+        padding: 8px;
+    }
+
+    .summary-value {
+        font-size: 1.1rem;
+    }
+
+    /* Night retro improvements */
+    .retro-lesson {
+        font-size: 0.9rem;
+        padding: 10px;
+    }
+
+    .pivot-options {
+        gap: 8px;
+    }
+
+    .pivot-btn {
+        padding: 10px 15px;
+        font-size: 0.85rem;
+    }
+
+    /* Spice Crisis overlay */
+    .crisis-badge {
+        font-size: 1.1rem;
+        padding: 10px 20px;
+    }
+
+    .crisis-body {
+        padding: 12px;
+    }
+
+    /* Judgment overlay */
+    .judgment-result {
+        font-size: 1.8rem;
+    }
+
+    .judgment-dialogue {
+        max-height: 35vh;
+        padding: 12px;
+    }
+}

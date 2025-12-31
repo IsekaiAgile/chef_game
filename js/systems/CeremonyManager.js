@@ -63,6 +63,9 @@ class CeremonyManager {
         this._maxDays = 7;
         this._spiceCrisisShown = false;
 
+        // Guard flags to prevent double-triggering
+        this._isTransitioningToNight = false;
+
         this._setupEventListeners();
     }
 
@@ -211,9 +214,11 @@ class CeremonyManager {
         }
 
         // Store in game state for KitchenEngine to use
+        // Also clear pivotBonus after it's been "used" for this day's success calculation
         this._gameState.update({
             dailyFocus: focusId,
-            dailyFocusEffect: focus.effect
+            dailyFocusEffect: focus.effect,
+            pivotBonus: false  // Clear pivot bonus after morning stand-up
         });
 
         // Emit selection event
@@ -258,7 +263,11 @@ class CeremonyManager {
      * Called when an action is executed
      */
     _onActionExecuted(data) {
+        // GUARD: Only process if in ACTION phase
         if (this._currentPhase !== GAME_PHASES.ACTION) return;
+
+        // GUARD: Prevent double-counting if somehow called twice
+        if (this._isTransitioningToNight) return;
 
         this._actionsThisDay++;
 
@@ -274,9 +283,13 @@ class CeremonyManager {
 
         // Check if day should end (3 actions completed)
         if (this._actionsThisDay >= this._maxActionsPerDay) {
+            // Set guard flag to prevent double-triggering
+            this._isTransitioningToNight = true;
+
             // Small delay before transitioning to night
             setTimeout(() => {
                 this._transitionToPhase(GAME_PHASES.NIGHT);
+                this._isTransitioningToNight = false;
             }, 1500);
         }
     }
@@ -301,7 +314,8 @@ class CeremonyManager {
         const maxDays = state.maxDays || this._maxDays;
 
         // Check for Day 7 Judgment (Episode 1 final evaluation)
-        if (state.currentEpisode === 1 && state.day >= maxDays) {
+        // Triggers when we've completed the LAST day's actions (Day 7)
+        if (state.currentEpisode === 1 && state.day === maxDays) {
             this._triggerJudgmentScene(state);
             return;
         }
@@ -432,16 +446,68 @@ class CeremonyManager {
      * End retrospective and prepare for next day
      */
     _endRetrospective() {
-        // Clear daily state
+        const currentDay = this._gameState.get('day');
+
+        // Clear daily state (but keep pivotBonus - it should apply to NEXT day)
         this._dailyFocus = null;
         this._gameState.update({
             dailyFocus: null,
             dailyFocusEffect: null
+            // NOTE: pivotBonus is cleared in selectDailyFocus() after being used
         });
 
+        // NOW advance the day counter (after retrospective is complete)
+        this._gameState.update({ day: currentDay + 1 });
+
         this._eventBus.emit('ceremony:day_complete', {
-            day: this._gameState.get('day')
+            completedDay: currentDay,
+            nextDay: currentDay + 1
         });
+
+        // Check for game end conditions AFTER day advances
+        this._checkGameEndConditions();
+    }
+
+    /**
+     * Check game end conditions after retrospective
+     */
+    _checkGameEndConditions() {
+        const state = this._gameState.getState();
+
+        // Check for game over (stagnation, mood, etc.)
+        if (this._gameState.isGameOver()) {
+            this._eventBus.emit(GameEvents.GAME_OVER, {
+                state: state,
+                reason: this._getGameOverReason(state)
+            });
+            return;
+        }
+
+        // Check for episode victory (only for non-Episode-1 or after Day 7)
+        if (this._gameState.isVictory()) {
+            this._eventBus.emit(GameEvents.GAME_VICTORY, {
+                state: state
+            });
+            return;
+        }
+
+        // Episode 1 specific: Check if we've completed the 7-day sprint successfully
+        if (state.currentEpisode === 1 && state.day > (state.maxDays || 7)) {
+            if (state.growth >= 50) {
+                this._eventBus.emit(GameEvents.EPISODE_COMPLETED, { episode: 1 });
+            }
+        }
+    }
+
+    /**
+     * Get reason for game over
+     */
+    _getGameOverReason(state) {
+        if (state.stagnation >= 100) return 'stagnation';
+        if (state.oldManMood <= 0) return 'mood';
+        if (state.ingredientQuality <= 0) return 'quality';
+        if (state.currentIngredients <= 0) return 'ingredients';
+        return 'unknown';
     }
 
     /**
@@ -461,6 +527,8 @@ class CeremonyManager {
         this._failedActions = [];
         this._dailyFocus = null;
         this._dayStartState = null;
+        this._isTransitioningToNight = false;
+        this._spiceCrisisShown = false;
     }
 
     // ===== PUBLIC GETTERS =====

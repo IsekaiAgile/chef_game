@@ -205,16 +205,21 @@ class GameUIRenderer {
 
     _renderScoreboard(state) {
         const dayEl = document.getElementById('day');
+        const maxDayEl = document.getElementById('max-day');
         const episodeNumEl = document.getElementById('episode-num');
         const episodeTitleEl = document.getElementById('episode-title');
 
+        // Show Day X / MaxDays format
         if (dayEl) dayEl.textContent = state.day;
+        if (maxDayEl) maxDayEl.textContent = state.maxDays || 7;
         if (episodeNumEl) episodeNumEl.textContent = state.currentEpisode;
 
         const episodeTitles = {
-            1: '伝統と革新',
-            2: '変化への対応',
-            3: '最終決戦'
+            1: '7日間の試用期間',
+            2: 'ゴブリン襲来',
+            3: 'ドラゴンの猛攻',
+            4: 'ライバル対決',
+            5: 'エルフ姫の宴'
         };
         if (episodeTitleEl) {
             episodeTitleEl.textContent = episodeTitles[state.currentEpisode] || '';

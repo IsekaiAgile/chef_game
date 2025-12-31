@@ -257,12 +257,13 @@ class KitchenEngine {
             return false;
         }
 
-        // Build result message
-        let message = `<div class="day-header">DAY ${state.day} 振り返り</div>`;
+        // Build result message (use current day, NOT incremented)
+        let message = `<div class="day-header">DAY ${state.day} アクション</div>`;
 
-        // Record action and advance day
+        // Record action (day advances AFTER Night Retrospective, not here!)
         this._gameState.recordAction(actionId);
-        this._gameState.update({ day: state.day + 1 });
+        // REMOVED: this._gameState.update({ day: state.day + 1 });
+        // Day now advances in CeremonyManager._endRetrospective()
 
         // Apply technical debt effect
         if (state.technicalDebt > 0) {
@@ -334,11 +335,9 @@ class KitchenEngine {
             state: this._gameState.getState()
         });
 
-        // Check game end conditions
-        this._checkGameEnd();
-
-        // Check episode progress
-        this._checkEpisodeProgress();
+        // NOTE: Game end and episode progress checks are now handled by CeremonyManager
+        // after the Night Retrospective closes, not immediately after each action.
+        // This ensures the player always sees the retrospective before victory/defeat.
 
         return true;
     }

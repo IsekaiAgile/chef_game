@@ -102,6 +102,24 @@ class GameApp {
             document.body.classList.add('vn-active');
         });
 
+        // VN dialogue completed - stop auto mode
+        this._eventBus.on(GameEvents.DIALOGUE_COMPLETED, () => {
+            if (this._autoMode) {
+                this._stopAutoAdvance();
+                // Keep autoMode flag but stop the interval
+            }
+        });
+
+        // VN dialogue skipped - also stop auto mode
+        this._eventBus.on(GameEvents.DIALOGUE_SKIPPED, () => {
+            if (this._autoMode) {
+                this._stopAutoAdvance();
+                this._autoMode = false;
+                const autoBtn = document.getElementById('vn-auto-btn');
+                if (autoBtn) autoBtn.classList.remove('active');
+            }
+        });
+
         // Perfect cycle - play celebration effect
         this._eventBus.on(GameEvents.PERFECT_CYCLE, () => {
             if (typeof gameEffects !== 'undefined') {

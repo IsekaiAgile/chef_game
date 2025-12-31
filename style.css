@@ -1350,14 +1350,15 @@ body {
     right: 20px;
     display: flex;
     gap: 10px;
-    pointer-events: auto;
+    pointer-events: auto !important;  /* Override parent's pointer-events: none */
     /* Must be above click layer (z-index: 999) */
-    z-index: 1000;
+    z-index: 1001;
 }
 
 .vn-control-btn {
     display: flex;
     align-items: center;
+    pointer-events: auto !important;  /* Ensure clickable despite parent's pointer-events: none */
     gap: 5px;
     padding: 8px 15px;
     background: var(--panel-bg);

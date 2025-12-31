@@ -194,8 +194,11 @@ class GameState {
         const state = this._state;
 
         switch (state.currentEpisode) {
-            case 1: // Growth 20+ and balanced
-                return state.growth >= 20 && this.isBalanced();
+            case 1:
+                // Episode 1: 7-Day Sprint - Victory is ONLY determined by Day 7 Judgment
+                // The Judgment scene in CeremonyManager handles success/failure
+                // This prevents false "Victory" popups during days 1-6
+                return false;
             case 2: // Complete 10 orders
                 return state.ordersCompleted >= 10;
             case 3: // Survive 12 days with quality >= 30

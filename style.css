@@ -219,6 +219,64 @@ body {
     color: var(--pawa-blue);
 }
 
+/* Phase Indicator Styling */
+.hud-phase {
+    min-width: 90px;
+}
+
+.hud-phase .phase-value {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 1rem;
+}
+
+.hud-phase .phase-icon {
+    font-size: 1.2rem;
+}
+
+.hud-phase .phase-text {
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+/* Phase colors */
+.hud-phase.phase-morning .hud-value {
+    color: var(--pawa-orange);
+}
+
+.hud-phase.phase-action .hud-value {
+    color: var(--pawa-green-dark);
+}
+
+.hud-phase.phase-night .hud-value {
+    color: var(--pawa-purple);
+}
+
+/* Action Counter Styling */
+.hud-actions {
+    min-width: 80px;
+}
+
+.hud-actions .action-value {
+    font-size: 1.2rem;
+    color: var(--pawa-green-dark);
+}
+
+.hud-actions.actions-low .action-value {
+    color: var(--pawa-orange);
+}
+
+.hud-actions.actions-depleted .action-value {
+    color: var(--pawa-red);
+    animation: pulse-warning 0.8s ease-in-out infinite;
+}
+
+@keyframes pulse-warning {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
 .hud-title-block {
     flex: 1;
     text-align: center;
@@ -897,6 +955,100 @@ body {
 .gauge-fill.growth-fill {
     background: linear-gradient(90deg, var(--pawa-green-dark), var(--pawa-green));
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Growth Target Marker (Goal indicator at 100%) */
+.growth-track {
+    position: relative;
+}
+
+.growth-target-marker {
+    position: absolute;
+    right: 0;
+    top: -6px;
+    bottom: -6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+}
+
+.growth-target-marker .target-line {
+    width: 3px;
+    height: 100%;
+    background: var(--fantasy-gold);
+    border-radius: 2px;
+    box-shadow: 0 0 6px rgba(212, 175, 55, 0.6);
+}
+
+.growth-target-marker .target-label {
+    position: absolute;
+    top: -16px;
+    font-size: 0.55rem;
+    font-weight: 900;
+    color: var(--fantasy-gold);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+
+/* Growth gauge value with target */
+.growth-gauge-block .gauge-value {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+}
+
+.growth-gauge-block .gauge-target {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--fantasy-brown);
+    opacity: 0.8;
+}
+
+/* Growth gauge progress animation when near goal */
+.growth-gauge-block.near-goal .gauge-fill.growth-fill {
+    animation: goal-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes goal-pulse {
+    0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+    50% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 10px var(--pawa-green); }
+}
+
+/* Actions Guidance Tooltip */
+.actions-guidance {
+    position: absolute;
+    bottom: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: linear-gradient(180deg, rgba(192, 132, 252, 0.95) 0%, rgba(139, 92, 246, 0.98) 100%);
+    border: 2px solid var(--fantasy-gold);
+    border-radius: 20px;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+    animation: guidance-bounce 1s ease-in-out infinite;
+    z-index: 50;
+}
+
+.actions-guidance .guidance-icon {
+    font-size: 1.2rem;
+}
+
+.actions-guidance .guidance-text {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    white-space: nowrap;
+}
+
+@keyframes guidance-bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(-5px); }
 }
 
 .gauge-fill.reputation-fill {
@@ -1590,9 +1742,42 @@ body {
         font-size: 1.1rem;
     }
 
+    /* Phase and Action indicators - compact on tablet */
+    .hud-phase {
+        min-width: 70px;
+    }
+
+    .hud-phase .phase-text {
+        font-size: 0.7rem;
+    }
+
+    .hud-actions {
+        min-width: 60px;
+    }
+
+    .hud-actions .action-value {
+        font-size: 1rem;
+    }
+
     .hud-title {
         font-size: 0.85rem;
         letter-spacing: 1px;
+    }
+
+    /* Growth target marker - smaller on mobile */
+    .growth-target-marker .target-label {
+        font-size: 0.5rem;
+        top: -14px;
+    }
+
+    /* Actions guidance tooltip */
+    .actions-guidance {
+        padding: 6px 12px;
+        bottom: -35px;
+    }
+
+    .actions-guidance .guidance-text {
+        font-size: 0.75rem;
     }
 
     /* Hero character - smaller on mobile, still anchored to bottom */
@@ -1822,6 +2007,47 @@ body {
 
     .hud-title {
         font-size: 0.75rem;
+    }
+
+    /* On very small screens, hide phase text, show icon only */
+    .hud-phase {
+        min-width: 45px;
+    }
+
+    .hud-phase .phase-text {
+        display: none;
+    }
+
+    .hud-phase .phase-icon {
+        font-size: 1.4rem;
+    }
+
+    /* Compact action counter */
+    .hud-actions {
+        min-width: 50px;
+    }
+
+    .hud-actions .action-value {
+        font-size: 0.9rem;
+    }
+
+    /* Hide growth target label on tiny screens */
+    .growth-target-marker .target-label {
+        display: none;
+    }
+
+    /* Compact guidance */
+    .actions-guidance {
+        padding: 5px 10px;
+        bottom: -30px;
+    }
+
+    .actions-guidance .guidance-icon {
+        font-size: 1rem;
+    }
+
+    .actions-guidance .guidance-text {
+        font-size: 0.7rem;
     }
 
     .pawa-hero-layer {

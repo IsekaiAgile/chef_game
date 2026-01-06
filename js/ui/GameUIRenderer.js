@@ -230,9 +230,20 @@ class GameUIRenderer {
         // Growth gauge
         const growthValEl = document.getElementById('growth-val');
         const growthMeterEl = document.getElementById('growth-meter');
+        const growthGaugeBlock = document.querySelector('.growth-gauge-block');
+
         if (growthValEl) growthValEl.textContent = state.growth;
         if (growthMeterEl) {
             growthMeterEl.style.width = `${(state.growth / this._config.maxGrowth) * 100}%`;
+        }
+
+        // Add near-goal class when growth is >= 40 (80% of target)
+        if (growthGaugeBlock) {
+            if (state.growth >= 40) {
+                growthGaugeBlock.classList.add('near-goal');
+            } else {
+                growthGaugeBlock.classList.remove('near-goal');
+            }
         }
 
         // Reputation gauge (oldManMood)

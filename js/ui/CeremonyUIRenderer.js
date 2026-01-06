@@ -66,6 +66,46 @@ class CeremonyUIRenderer {
                 container.classList.add('night-transition');
             }
         }
+
+        // Update Phase Indicator in HUD
+        this._updatePhaseIndicator(phase);
+    }
+
+    /**
+     * Update the phase indicator in the top HUD
+     * @param {string} phase - 'morning', 'action', or 'night'
+     */
+    _updatePhaseIndicator(phase) {
+        const phaseEl = document.getElementById('phase-indicator');
+        const iconEl = phaseEl?.querySelector('.phase-icon');
+        const textEl = phaseEl?.querySelector('.phase-text');
+
+        if (!phaseEl) return;
+
+        // Remove all phase classes
+        phaseEl.classList.remove('phase-morning', 'phase-action', 'phase-night');
+
+        // Set phase-specific display
+        switch (phase) {
+            case 'morning':
+                phaseEl.classList.add('phase-morning');
+                if (iconEl) iconEl.textContent = '☀️';
+                if (textEl) textEl.textContent = '朝会';
+                break;
+            case 'action':
+                phaseEl.classList.add('phase-action');
+                if (iconEl) iconEl.textContent = '⚔️';
+                if (textEl) textEl.textContent = '実行';
+                break;
+            case 'night':
+                phaseEl.classList.add('phase-night');
+                if (iconEl) iconEl.textContent = '🌙';
+                if (textEl) textEl.textContent = '振返';
+                break;
+            default:
+                if (iconEl) iconEl.textContent = '⏳';
+                if (textEl) textEl.textContent = '準備中';
+        }
     }
 
     _onTransitionStart(data) {
@@ -190,6 +230,10 @@ class CeremonyUIRenderer {
      * @param {number} remaining
      */
     setActionsRemaining(remaining) {
+        const maxActions = 3;
+        const actionsUsed = maxActions - remaining;
+
+        // Update legacy remaining-count element
         const countEl = document.getElementById('remaining-count');
         if (countEl) {
             countEl.textContent = remaining;
@@ -201,6 +245,36 @@ class CeremonyUIRenderer {
                 countEl.style.color = 'var(--pawa-orange)';
             } else {
                 countEl.style.color = 'var(--pawa-green)';
+            }
+        }
+
+        // Update HUD Action Counter
+        const actionCounter = document.getElementById('action-counter');
+        const actionsUsedEl = document.getElementById('actions-used');
+        const guidanceEl = document.getElementById('actions-guidance');
+
+        if (actionsUsedEl) {
+            actionsUsedEl.textContent = actionsUsed;
+        }
+
+        if (actionCounter) {
+            // Remove all state classes
+            actionCounter.classList.remove('actions-low', 'actions-depleted');
+
+            // Add state-specific class
+            if (remaining === 0) {
+                actionCounter.classList.add('actions-depleted');
+            } else if (remaining === 1) {
+                actionCounter.classList.add('actions-low');
+            }
+        }
+
+        // Show/hide guidance tooltip
+        if (guidanceEl) {
+            if (remaining === 0) {
+                guidanceEl.classList.remove('hidden');
+            } else {
+                guidanceEl.classList.add('hidden');
             }
         }
     }

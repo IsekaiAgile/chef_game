@@ -24,7 +24,7 @@
         <!-- Floating Text Container (for +5, -3 effects) -->
         <div id="floating-text-container"></div>
 
-        <!-- LAYER 1: Top HUD Bar (Sprint/Day) -->
+        <!-- LAYER 1: Top HUD Bar (Sprint/Day/Phase/Actions) -->
         <div class="pawa-top-hud">
             <div class="hud-block hud-sprint">
                 <span class="hud-label">SPRINT</span>
@@ -33,6 +33,21 @@
             <div class="hud-block hud-day">
                 <span class="hud-label">DAY</span>
                 <span class="hud-value"><span id="day">1</span> / <span id="max-day">7</span></span>
+            </div>
+            <!-- Phase Indicator -->
+            <div class="hud-block hud-phase" id="phase-indicator">
+                <span class="hud-label">PHASE</span>
+                <span class="hud-value phase-value" id="current-phase">
+                    <span class="phase-icon">&#x2600;</span>
+                    <span class="phase-text">準備中</span>
+                </span>
+            </div>
+            <!-- Action Counter -->
+            <div class="hud-block hud-actions" id="action-counter">
+                <span class="hud-label">ACTIONS</span>
+                <span class="hud-value action-value">
+                    <span id="actions-used">0</span> / <span id="actions-max">3</span>
+                </span>
             </div>
             <div class="hud-title-block">
                 <span class="hud-title" id="episode-title">ネコノヒゲ亭</span>
@@ -83,6 +98,11 @@
                     <span class="cmd-icon">&#x1F4A1;</span>
                     <span class="cmd-label">休憩</span>
                 </button>
+            </div>
+            <!-- Guidance Tooltip (shown when actions depleted) -->
+            <div class="actions-guidance hidden" id="actions-guidance">
+                <span class="guidance-icon">&#x1F319;</span>
+                <span class="guidance-text">本日のアクション終了！振り返りへ...</span>
             </div>
         </div>
 
@@ -137,13 +157,18 @@
 
         <!-- LAYER 6: Bottom Console HUD -->
         <div class="pawa-bottom-hud">
-            <!-- Energy/Growth Gauge -->
-            <div class="hud-gauge-block">
+            <!-- Energy/Growth Gauge with Target -->
+            <div class="hud-gauge-block growth-gauge-block">
                 <span class="gauge-label">成長</span>
-                <div class="gauge-track">
+                <div class="gauge-track growth-track">
                     <div class="gauge-fill growth-fill" id="growth-meter"></div>
+                    <!-- Target marker at 50 (100% of gauge = maxGrowth 50) -->
+                    <div class="growth-target-marker" id="growth-target">
+                        <span class="target-line"></span>
+                        <span class="target-label">GOAL</span>
+                    </div>
                 </div>
-                <span class="gauge-value" id="growth-val">0</span>
+                <span class="gauge-value"><span id="growth-val">0</span><span class="gauge-target">/ 50</span></span>
             </div>
             <!-- Reputation Gauge -->
             <div class="hud-gauge-block">

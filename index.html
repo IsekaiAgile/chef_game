@@ -84,15 +84,15 @@
             <div id="actions" class="command-row">
                 <button class="pawa-cmd-btn cmd-orange" data-action="1">
                     <span class="cmd-icon">&#x1F373;</span>
-                    <span class="cmd-label">調理</span>
+                    <span class="cmd-label">調理実験</span>
                 </button>
                 <button class="pawa-cmd-btn cmd-blue" data-action="2">
                     <span class="cmd-icon">&#x1F527;</span>
-                    <span class="cmd-label">分析</span>
+                    <span class="cmd-label">レシピ改善</span>
                 </button>
                 <button class="pawa-cmd-btn cmd-green" data-action="3">
                     <span class="cmd-icon">&#x1F465;</span>
-                    <span class="cmd-label">対話</span>
+                    <span class="cmd-label">味見依頼</span>
                 </button>
                 <button class="pawa-cmd-btn cmd-pink" id="mina-tip-btn">
                     <span class="cmd-icon">&#x1F4A1;</span>
@@ -157,15 +157,15 @@
 
         <!-- LAYER 6: Bottom Console HUD -->
         <div class="pawa-bottom-hud">
-            <!-- Energy/Growth Gauge with Target -->
+            <!-- Dish Perfection Gauge (名物料理の完成度) -->
             <div class="hud-gauge-block growth-gauge-block">
-                <span class="gauge-label">成長</span>
+                <span class="gauge-label">完成度</span>
                 <div class="gauge-track growth-track">
                     <div class="gauge-fill growth-fill" id="growth-meter"></div>
-                    <!-- Target marker at 50 (100% of gauge = maxGrowth 50) -->
+                    <!-- Target marker at 50 = Master's Approval Line -->
                     <div class="growth-target-marker" id="growth-target">
                         <span class="target-line"></span>
-                        <span class="target-label">GOAL</span>
+                        <span class="target-label">合格</span>
                     </div>
                 </div>
                 <span class="gauge-value"><span id="growth-val">0</span><span class="gauge-target">/ 50</span></span>

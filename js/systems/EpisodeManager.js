@@ -28,11 +28,11 @@ const SCENES = {
 const EPISODE_CONFIG = {
     1: {
         id: 1,
-        title: '第1話：7日間の試用期間',
-        subtitle: 'The 7-Day Sprint to Employment',
-        description: '7日間で成長50を達成し、店主に認められろ！',
-        dish: '黄金のクミン・ラグー',
-        dishEnglish: 'Golden Cumin Ragout',
+        title: '第1話：不可能な弟子入り',
+        subtitle: 'The Impossible Apprenticeship',
+        description: '親父の伝説料理「キメラシチュー」を7日間で再現せよ！',
+        dish: 'キメラシチュー',
+        dishEnglish: 'Chimera Stew',
         guest: null,
         characters: ['mina', 'owner', 'fuji'],
         maxDays: 7,
@@ -381,6 +381,8 @@ class EpisodeManager {
     }
 
     _registerDefaultScenes() {
+        // ===== EPISODE 1: THE IMPOSSIBLE APPRENTICESHIP =====
+
         // Scene 1: The Rescue (Reincarnation)
         this.registerScene('SCENE1_RESCUE', [
             { speaker: 'narrator', text: '気がつくと、あなたは見知らぬ路上で倒れていた。' },
@@ -391,38 +393,56 @@ class EpisodeManager {
             { speaker: 'narrator', text: 'これは...異世界転生というやつか...？' }
         ]);
 
-        // Scene 2: Nekonohige Kitchen
+        // Scene 2: Nekonohige Kitchen - Fuji wakes up
         this.registerScene('SCENE2_KITCHEN', [
             { speaker: 'narrator', text: '目を覚ますと、あなたは古びた食堂の中にいた。' },
             { speaker: 'mina', text: 'あ、目が覚めた！よかったぁ〜' },
-            { speaker: 'mina', text: '私はミナ！ここは「猫の髭亭」だよ。お父さんがやってる食堂なの。' },
+            { speaker: 'mina', text: '私はミナ！ここは「ネコノヒゲ亭」だよ。お父さんがやってる食堂なの。' },
             { speaker: 'fuji', text: '...（自分の名前は...フジ、だったか？記憶が曖昧だ）' },
             { speaker: 'mina', text: 'えっと...お名前は？' },
             { speaker: 'fuji', text: 'フジ...だと思う。' },
             { speaker: 'mina', text: 'フジさんね！変わった格好してるけど...旅の人？' }
         ]);
 
-        // Scene 3: The Master
+        // Scene 3: The Master's Rejection
         this.registerScene('SCENE3_MASTER', [
             { speaker: 'narrator', text: '厨房から重い足音が聞こえてくる。' },
             { speaker: 'owner', text: 'ミナ、騒がしいぞ。客でも来たか？' },
-            { speaker: 'mina', text: 'お父さん！この人、道で倒れてたの！' },
-            { speaker: 'owner', text: 'ふむ...見慣れない服装だな。どこから来た？' },
-            { speaker: 'fuji', text: '...正直、よく覚えていません。' },
-            { speaker: 'owner', text: '記憶がないのか。まあいい、腹は減っているだろう。食っていけ。' },
-            { speaker: 'narrator', text: '老店主は無愛想だが、悪い人ではなさそうだ。' },
-            { speaker: 'owner', text: 'しかし、タダ飯はない。食ったら厨房を手伝ってもらう。' },
-            { speaker: 'owner', text: 'この店は人手が足りん。お前、料理はできるか？' },
-            { speaker: 'fuji', text: '料理は...わかりませんが、働くことならできます。' },
-            { speaker: 'owner', text: 'よかろう。だが、ワシのやり方に口出しはするなよ。' }
+            { speaker: 'mina', text: 'お父さん！この人、道で倒れてたの！働きたいって！' },
+            { speaker: 'owner', text: 'ふん...見るからに素人だな。帰れ。' },
+            { speaker: 'fuji', text: 'え...？' },
+            { speaker: 'owner', text: 'ウチは人を育てる余裕はない。よそを当たれ。' },
+            { speaker: 'mina', text: 'お父さん！そんな言い方ないよ！' },
+            { speaker: 'mina', text: '最近お客さん減ってるし、手伝いがいた方がいいでしょ！' },
+            { speaker: 'owner', text: '...チッ。うるさい娘だ。' },
+            { speaker: 'narrator', text: '老店主はしばらく黙った後、厳しい目つきでフジを見た。' }
         ]);
 
-        // Scene 5: The Start (after choice)
+        // Scene 4: The Impossible Challenge
+        this.registerScene('SCENE4_CHALLENGE', [
+            { speaker: 'owner', text: 'いいだろう。だが、条件がある。' },
+            { speaker: 'owner', text: 'ワシの看板料理「キメラシチュー」を知っているか？' },
+            { speaker: 'fuji', text: 'いえ...' },
+            { speaker: 'owner', text: '異界の獣肉と薬草を煮込んだ伝説の一品だ。ワシが完成させるのに2年かかった。' },
+            { speaker: 'owner', text: 'お前が本気で働きたいなら...7日以内にこれを再現してみろ。' },
+            { speaker: 'mina', text: '7日！？お父さん、それは無茶だよ！' },
+            { speaker: 'owner', text: '無茶？ならば帰れ。才能のない奴に使う時間はない。' },
+            { speaker: 'fuji', text: '...（2年かかった料理を7日で？普通なら不可能だ）' },
+            { speaker: 'fuji', text: '...（でも待てよ。前世で学んだ「アジャイル」の考え方なら...）' },
+            { speaker: 'fuji', text: '...（小さく試して、フィードバックを得て、すばやく改善する）' },
+            { speaker: 'fuji', text: '...（2年分の「経験」を7日で圧縮できるかもしれない！）' }
+        ]);
+
+        // Scene 5: Fuji accepts the challenge
         this.registerScene('SCENE5_START', [
-            { speaker: 'owner', text: '...まあいい。とにかく働きながら覚えろ。' },
-            { speaker: 'mina', text: 'フジさん、頑張ってね！私も手伝うから！' },
-            { speaker: 'narrator', text: 'こうして、あなたの異世界キッチンでの日々が始まった。' },
-            { speaker: 'narrator', text: '前世の知識が、この古びた食堂で役に立つだろうか...？' }
+            { speaker: 'fuji', text: 'やります。7日間で、必ず。' },
+            { speaker: 'owner', text: 'ほう...？目だけは一人前だな。' },
+            { speaker: 'owner', text: 'いいだろう。7日後にワシが味見する。合格ラインに届かなければ...出て行け。' },
+            { speaker: 'mina', text: 'フジさん...！' },
+            { speaker: 'fuji', text: '（伝統的な修行は時間がかかる。だが「反復実験」と「即時フィードバック」で）' },
+            { speaker: 'fuji', text: '（不可能を可能にしてみせる...！）' },
+            { speaker: 'narrator', text: 'こうして、フジの「7日間の試用期間」が始まった。' },
+            { speaker: 'narrator', text: '伝統の味を「アジャイル」で攻略できるのか...？' }
         ]);
 
         // Perfect cycle event dialogue
@@ -544,11 +564,20 @@ class EpisodeManager {
         this._eventBus.emit(GameEvents.CHARACTER_SHOWN, { characterId: 'owner' });
 
         this._dialogueSystem.start(scene3, 'intro', () => {
-            // Show choice
+            // Continue to Scene 4: The Impossible Challenge
+            this._playScene4Challenge(onComplete);
+        });
+    }
+
+    _playScene4Challenge(onComplete) {
+        const scene4 = this._sceneData.get('SCENE4_CHALLENGE');
+
+        this._dialogueSystem.start(scene4, 'intro', () => {
+            // Show choice: Accept the challenge or give up
             this._eventBus.emit(GameEvents.CHOICE_PRESENTED, {
                 choices: [
-                    { id: 'obedient', text: 'A. 黙って従う「わかりました、ご指導お願いします」' },
-                    { id: 'agile', text: 'B. アジャイルを提案「...効率化の提案があるのですが」' }
+                    { id: 'agile', text: 'A. 挑戦を受ける「7日で証明してみせます！」' },
+                    { id: 'obedient', text: 'B. 諦める「...無理です、他を探します」' }
                 ]
             });
 
@@ -565,18 +594,34 @@ class EpisodeManager {
         this._gameState.update({ playerChoice: choiceId });
 
         if (choiceId === 'obedient') {
-            this._gameState.adjust('traditionScore', 10, 0, 100);
-            this._gameState.adjust('oldManMood', 10, 0, 100);
+            // Player gave up - bad ending
+            this._gameState.adjust('oldManMood', -10, 0, 100);
+            this._eventBus.emit(GameEvents.CHOICE_SELECTED, { choice: choiceId });
+            this._playGiveUpEnding();
         } else {
-            this._gameState.adjust('traditionScore', -10, 0, 100);
-            this._gameState.adjust('oldManMood', -5, 0, 100);
-            this._gameState.update({ hasChefKnife: true });
+            // Player accepts the challenge!
+            this._gameState.adjust('oldManMood', 5, 0, 100);
+            this._eventBus.emit(GameEvents.CHOICE_SELECTED, { choice: choiceId });
+            this._playScene5Start();
         }
+    }
 
-        this._eventBus.emit(GameEvents.CHOICE_SELECTED, { choice: choiceId });
+    _playGiveUpEnding() {
+        const giveUpScene = [
+            { speaker: 'owner', text: '...そうか。賢明な判断だ。' },
+            { speaker: 'owner', text: '素人が厨房で働くのは甘くない。他を当たれ。' },
+            { speaker: 'mina', text: 'フジさん...' },
+            { speaker: 'narrator', text: 'フジは「ネコノヒゲ亭」を後にした...' },
+            { speaker: 'narrator', text: '【BAD END：挑戦なき者に道は開かれず】' }
+        ];
 
-        // Play scene 5
-        this._playScene5Start();
+        this._dialogueSystem.start(giveUpScene, 'intro', () => {
+            // Show game over
+            this._eventBus.emit(GameEvents.GAME_OVER, {
+                state: this._gameState.getState(),
+                reason: 'gave_up'
+            });
+        });
     }
 
     _playScene5Start() {

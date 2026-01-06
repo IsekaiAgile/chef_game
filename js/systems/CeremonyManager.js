@@ -175,35 +175,82 @@ class CeremonyManager {
 
     /**
      * Get contextual morning dialogue based on game state
+     * Features grumpy Master lines that reflect current stats
      */
     _getMorningDialogue(state) {
         const dialogues = [];
+        const maxDays = state.maxDays || 7;
+        const daysRemaining = maxDays - state.day + 1;
 
-        // Opening line
+        // ===== GRUMPY MASTER MORNING LINE (Based on stats) =====
+        const masterLine = this._getMasterMorningLine(state, daysRemaining);
+        dialogues.push(masterLine);
+
+        // ===== MINA'S ENCOURAGEMENT =====
         if (state.day === 1) {
-            dialogues.push({ speaker: 'ミナ', text: 'フジくん、今日から頑張ろうね！' });
-            dialogues.push({ speaker: '老店主', text: '…まずは作戦を立てろ。何も考えずに動くな。' });
+            dialogues.push({ speaker: 'ミナ', text: 'キメラシチュー完成まで7日間...頑張ろう、フジくん！' });
+        } else if (daysRemaining <= 2) {
+            dialogues.push({ speaker: 'ミナ', text: `あと${daysRemaining}日...ラストスパートだね！` });
+        } else if (state.growth >= 40) {
+            dialogues.push({ speaker: 'ミナ', text: 'いい感じ！合格ラインが見えてきたよ！' });
         } else {
-            const greetings = [
-                { speaker: 'ミナ', text: `${state.day}日目の朝だよ！今日の作戦は？` },
-                { speaker: 'ミナ', text: '新しい一日が始まるよ！何に集中する？' },
-                { speaker: '老店主', text: '今日は何を優先する？考えてから動け。' }
+            const minaLines = [
+                { speaker: 'ミナ', text: `${state.day}日目！今日の作戦は？` },
+                { speaker: 'ミナ', text: '新しい発見があるかも...挑戦してみよう！' },
+                { speaker: 'ミナ', text: 'お父さんを唸らせる味を見つけよう！' }
             ];
-            dialogues.push(greetings[Math.floor(Math.random() * greetings.length)]);
+            dialogues.push(minaLines[Math.floor(Math.random() * minaLines.length)]);
         }
 
-        // Add contextual advice based on state
+        // ===== CONTEXTUAL ADVICE (Stat warnings) =====
         if (state.ingredientQuality < 40) {
-            dialogues.push({ speaker: 'ミナ', text: '品質が下がってるね…整備が必要かも。' });
+            dialogues.push({ speaker: 'ミナ', text: '厨房の状態が良くないね...レシピ改善が必要かも。' });
         }
         if (state.stagnation >= 60) {
-            dialogues.push({ speaker: '老店主', text: '停滞が溜まっておる。新しいことを試すべきか？' });
+            dialogues.push({ speaker: 'ミナ', text: '同じやり方だと限界がきてる...新しい挑戦を！' });
         }
-        if (state.currentIngredients <= 1) {
-            dialogues.push({ speaker: 'ミナ', text: '食材が少ないよ！節約するか補充するか…' });
+        if (state.technicalDebt >= 5) {
+            dialogues.push({ speaker: 'ミナ', text: '技術的負債が溜まってるね...整理した方がいいかも。' });
         }
 
         return dialogues;
+    }
+
+    /**
+     * Generate grumpy Master morning line based on stats
+     */
+    _getMasterMorningLine(state, daysRemaining) {
+        // Priority-based grumpy comments
+        if (state.technicalDebt >= 8) {
+            return { speaker: '老店主', text: '...厨房がぐちゃぐちゃだ。こんな状態で料理ができると思うな。' };
+        }
+        if (state.growth < 10 && state.day >= 3) {
+            return { speaker: '老店主', text: 'ふん...まだ素人の味だな。ワシを舐めているのか？' };
+        }
+        if (state.stagnation >= 70) {
+            return { speaker: '老店主', text: '同じことの繰り返しか...お前に才能はないのかもしれん。' };
+        }
+        if (state.ingredientQuality < 30) {
+            return { speaker: '老店主', text: '品質が落ちている。こんな食材で客に出せるか！' };
+        }
+        if (state.oldManMood < 40) {
+            return { speaker: '老店主', text: '...まだ諦めてないのか。しつこいヤツだ。' };
+        }
+        if (daysRemaining <= 2 && state.growth < 40) {
+            return { speaker: '老店主', text: '残り時間は少ない...このままでは不合格だぞ。' };
+        }
+        if (state.growth >= 40) {
+            return { speaker: '老店主', text: '...悪くない。だが、まだ足りん。' };
+        }
+
+        // Default grumpy lines by day
+        const defaultLines = [
+            { speaker: '老店主', text: '今日も無駄にするつもりか？考えて動け。' },
+            { speaker: '老店主', text: '口より手を動かせ。結果で示せ。' },
+            { speaker: '老店主', text: 'キメラシチューは一朝一夕でできるものではない...わかっているな？' },
+            { speaker: '老店主', text: '...何をボーッとしている。時間は待ってくれんぞ。' }
+        ];
+        return defaultLines[Math.floor(Math.random() * defaultLines.length)];
     }
 
     /**
@@ -344,6 +391,7 @@ class CeremonyManager {
 
     /**
      * Trigger the Day 7 Judgment Scene (Episode 1 finale)
+     * The Master tastes the Chimera Stew to determine if Fuji passes
      */
     _triggerJudgmentScene(state) {
         const requiredGrowth = 50;
@@ -356,19 +404,26 @@ class CeremonyManager {
                 growth: state.growth,
                 requiredGrowth,
                 dialogues: [
-                    { speaker: 'narrator', text: '7日目の夜。老店主がフジを呼び止めた。' },
-                    { speaker: '老店主', text: '...フジ。' },
-                    { speaker: 'fuji', text: 'はい...？' },
-                    { speaker: '老店主', text: 'お前の「黄金のクミン・ラグー」...悪くなかった。' },
-                    { speaker: 'ミナ', text: 'お父さん！それって...！' },
-                    { speaker: '老店主', text: 'まあ...使えるヤツがいると助かる。明日からも来い。' },
-                    { speaker: 'fuji', text: '！...ありがとうございます！' },
-                    { speaker: 'ミナ', text: 'やったね、フジくん！これからよろしくね！' },
-                    { speaker: 'narrator', text: 'こうして、フジは「ネコノヒゲ亭」の正式なスタッフになった。' }
+                    { speaker: 'narrator', text: '7日目の夜。ついに審判の時が来た。' },
+                    { speaker: 'narrator', text: 'フジが作った「キメラシチュー」が、老店主の前に置かれる。' },
+                    { speaker: '老店主', text: '...ふむ。' },
+                    { speaker: 'narrator', text: '老店主は無言でスプーンを手に取り、一口すくった。' },
+                    { speaker: 'ミナ', text: '（ドキドキ...）' },
+                    { speaker: 'narrator', text: '長い沈黙。店内に緊張が走る。' },
+                    { speaker: '老店主', text: '......。' },
+                    { speaker: '老店主', text: '...ワシが2年かけた味を、7日で再現しおったか。' },
+                    { speaker: 'fuji', text: '...！' },
+                    { speaker: '老店主', text: 'まだ荒削りだ。だが...芯は捉えている。' },
+                    { speaker: '老店主', text: 'お前の「やり方」...認めてやる。明日から正式に働け。' },
+                    { speaker: 'ミナ', text: 'やったー！フジくん合格だよ！' },
+                    { speaker: 'fuji', text: 'ありがとうございます...！必ず期待に応えます！' },
+                    { speaker: '老店主', text: 'ふん...調子に乗るな。これからが本番だ。' },
+                    { speaker: 'narrator', text: '「アジャイル」の力で不可能を可能にしたフジ。' },
+                    { speaker: 'narrator', text: 'こうして、「ネコノヒゲ亭」での本当の修行が始まる...' }
                 ],
                 reward: {
                     item: '老店主の包丁',
-                    description: '信頼の証として、古い包丁を受け取った'
+                    description: '正式採用の証として、年季の入った包丁を受け取った'
                 }
             });
         } else {
@@ -376,13 +431,19 @@ class CeremonyManager {
                 growth: state.growth,
                 requiredGrowth,
                 dialogues: [
-                    { speaker: 'narrator', text: '7日目の夜。老店主が静かに告げた。' },
-                    { speaker: '老店主', text: '...フジ。残念だが、お前には向いてないようだ。' },
+                    { speaker: 'narrator', text: '7日目の夜。審判の時が来た。' },
+                    { speaker: 'narrator', text: 'フジが作った「キメラシチュー」が、老店主の前に置かれる。' },
+                    { speaker: '老店主', text: '...。' },
+                    { speaker: 'narrator', text: '老店主は一口含み、すぐにスプーンを置いた。' },
+                    { speaker: '老店主', text: '...話にならん。' },
                     { speaker: 'fuji', text: 'そんな...！' },
-                    { speaker: '老店主', text: '諦めが肝心だ。他を当たれ。' },
-                    { speaker: 'ミナ', text: 'お父さん...！でも...' },
-                    { speaker: '老店主', text: 'ミナ、仕方ないことだ。' },
-                    { speaker: 'narrator', text: 'フジは再び路頭に迷うことになった...' }
+                    { speaker: '老店主', text: 'ワシの料理を舐めていたようだな。2年の重みがわかるか？' },
+                    { speaker: '老店主', text: '約束通りだ...出て行け。' },
+                    { speaker: 'ミナ', text: 'お父さん...！もう少しだけ...！' },
+                    { speaker: '老店主', text: '甘やかすな、ミナ。ここは厨房だ。結果が全てだ。' },
+                    { speaker: 'fuji', text: '...すみませんでした。' },
+                    { speaker: 'narrator', text: '7日間では足りなかった...' },
+                    { speaker: 'narrator', text: 'フジは「ネコノヒゲ亭」を後にした。' }
                 ]
             });
         }

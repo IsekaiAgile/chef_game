@@ -33,10 +33,11 @@ const DAILY_FOCUS_OPTIONS = {
 };
 
 // ===== GAME PHASE DEFINITIONS =====
+// NOTE: Using GameState's phase system ('day'/'night')
+// 'day' = 昼の業務 (3 actions), 'night' = 夜の自習 (1 action)
 const GAME_PHASES = {
-    MORNING: 'morning',      // Daily Stand-up
-    ACTION: 'action',        // Kitchen Battle
-    NIGHT: 'night',          // Retrospective
+    DAY: 'day',              // 昼の業務（3アクション）
+    NIGHT: 'night',          // 夜の自習（1アクション）
     TRANSITION: 'transition' // Between phases
 };
 
@@ -49,10 +50,11 @@ class CeremonyManager {
         this._eventBus = eventBus;
         this._gameState = gameState;
 
-        // Current phase tracking
-        this._currentPhase = GAME_PHASES.MORNING;
+        // Current phase tracking (sync with GameState)
         this._actionsThisDay = 0;
         this._maxActionsPerDay = 3;
+        this._actionsThisNight = 0;
+        this._maxActionsPerNight = 1;
 
         // Daily state
         this._dailyFocus = null;
@@ -96,22 +98,33 @@ class CeremonyManager {
      * Start a new day with Morning Stand-up
      */
     startNewDay() {
-        this._currentPhase = GAME_PHASES.MORNING;
+        // Reset action counters
         this._actionsThisDay = 0;
+        this._actionsThisNight = 0;
         this._failedActions = [];
         this._isTransitioningToNight = false;  // Reset guard flag
         this._dayStartState = { ...this._gameState.getState() };
 
         const currentDay = this._gameState.get('day');
+        const currentPhase = this._gameState.get('currentPhase');
+
+        // Ensure we start in 'day' phase
+        if (currentPhase !== 'day') {
+            this._gameState.update({ 
+                currentPhase: 'day',
+                dayActionsRemaining: GameConfig.phases.DAY.actionsAllowed,
+                nightActionsRemaining: GameConfig.phases.NIGHT.actionsAllowed
+            });
+        }
 
         // CRITICAL: Force UI update by emitting state change
         this._eventBus.emit(GameEvents.UI_UPDATE_REQUESTED, {
             state: this._gameState.getState()
         });
 
-        // Emit phase change
+        // Emit phase change (using GameState's phase)
         this._eventBus.emit('ceremony:phase_changed', {
-            phase: GAME_PHASES.MORNING,
+            phase: 'day',
             day: currentDay
         });
 
@@ -282,35 +295,44 @@ class CeremonyManager {
             message: `今日の方針：${focus.name}（${focus.description}）`
         });
 
-        // Transition to action phase
-        this._transitionToPhase(GAME_PHASES.ACTION);
+        // Transition to day phase (昼の業務)
+        this._transitionToPhase('day');
     }
 
     /**
      * Transition between phases with animation
      */
     _transitionToPhase(newPhase) {
-        this._currentPhase = GAME_PHASES.TRANSITION;
+        const currentPhase = this._gameState.get('currentPhase');
 
         // Emit transition start
         this._eventBus.emit('ceremony:transition_start', {
-            from: this._currentPhase,
+            from: currentPhase,
             to: newPhase
         });
 
-        // After transition animation, set new phase
+        // After transition animation, set new phase in GameState
         setTimeout(() => {
-            this._currentPhase = newPhase;
+            // Update GameState phase
+            if (newPhase === 'day') {
+                this._gameState.update({
+                    currentPhase: 'day',
+                    dayActionsRemaining: GameConfig.phases.DAY.actionsAllowed,
+                    nightActionsRemaining: GameConfig.phases.NIGHT.actionsAllowed
+                });
+                this._eventBus.emit('ceremony:action_phase_start', {});
+            } else if (newPhase === 'night') {
+                this._gameState.update({
+                    currentPhase: 'night',
+                    nightActionsRemaining: GameConfig.phases.NIGHT.actionsAllowed
+                });
+                this._showNightRetrospective();
+            }
+
             this._eventBus.emit('ceremony:phase_changed', {
                 phase: newPhase,
                 day: this._gameState.get('day')
             });
-
-            if (newPhase === GAME_PHASES.ACTION) {
-                this._eventBus.emit('ceremony:action_phase_start', {});
-            } else if (newPhase === GAME_PHASES.NIGHT) {
-                this._showNightRetrospective();
-            }
         }, 1500); // 1.5s transition animation
     }
 
@@ -318,43 +340,63 @@ class CeremonyManager {
      * Called when an action is executed
      */
     _onActionExecuted(data) {
-        // GUARD: Only process if in ACTION phase
-        if (this._currentPhase !== GAME_PHASES.ACTION) return;
+        const currentPhase = this._gameState.get('currentPhase');
+
+        // GUARD: Only process if in day or night phase
+        if (currentPhase !== 'day' && currentPhase !== 'night') return;
 
         // GUARD: Prevent double-counting if somehow called twice
         if (this._isTransitioningToNight) return;
 
-        this._actionsThisDay++;
+        if (currentPhase === 'day') {
+            // 昼の業務フェーズ
+            this._actionsThisDay++;
 
-        // Track failed actions for Adapt/Pivot logic
-        // Check result message for failure indicators
-        if (data.message && data.message.includes('failure')) {
-            this._failedActions.push(data.actionId);
-        }
+            // Track failed actions for Adapt/Pivot logic
+            if (data.message && data.message.includes('failure')) {
+                this._failedActions.push(data.actionId);
+            }
 
-        // Emit remaining actions update
-        const remaining = this._maxActionsPerDay - this._actionsThisDay;
-        this._eventBus.emit('ceremony:actions_remaining', { remaining });
+            // Emit remaining actions update
+            const remaining = this._maxActionsPerDay - this._actionsThisDay;
+            this._eventBus.emit('ceremony:actions_remaining', { remaining });
 
-        // Check if day should end (3 actions completed)
-        if (this._actionsThisDay >= this._maxActionsPerDay) {
-            // Set guard flag to prevent double-triggering
-            this._isTransitioningToNight = true;
+            // Check if day phase should end (3 actions completed)
+            if (this._actionsThisDay >= this._maxActionsPerDay) {
+                // Set guard flag to prevent double-triggering
+                this._isTransitioningToNight = true;
 
-            // Small delay before transitioning to night
-            setTimeout(() => {
-                this._transitionToPhase(GAME_PHASES.NIGHT);
-                this._isTransitioningToNight = false;
-            }, 1500);
+                // Small delay before transitioning to night
+                setTimeout(() => {
+                    this._transitionToPhase('night');
+                    this._isTransitioningToNight = false;
+                }, 1500);
+            }
+        } else if (currentPhase === 'night') {
+            // 夜の自習フェーズ
+            this._actionsThisNight++;
+
+            // Emit remaining actions update
+            const remaining = this._maxActionsPerNight - this._actionsThisNight;
+            this._eventBus.emit('ceremony:actions_remaining', { remaining });
+
+            // Check if night phase should end (1 action completed)
+            if (this._actionsThisNight >= this._maxActionsPerNight) {
+                // Night phase complete, proceed to retrospective
+                setTimeout(() => {
+                    this._showNightRetrospective();
+                }, 1500);
+            }
         }
     }
 
     /**
-     * Force end the action phase and go to night
+     * Force end the day phase and go to night
      */
     endActionPhase() {
-        if (this._currentPhase === GAME_PHASES.ACTION) {
-            this._transitionToPhase(GAME_PHASES.NIGHT);
+        const currentPhase = this._gameState.get('currentPhase');
+        if (currentPhase === 'day') {
+            this._transitionToPhase('night');
         }
     }
 
@@ -438,6 +480,7 @@ class CeremonyManager {
             this._eventBus.emit('ceremony:judgment_failure', {
                 growth: state.growth,
                 skillCheck: skillCheck.details,
+                state: state, // Include full state for continue screen
                 dialogues: [
                     { speaker: 'narrator', text: '7日目の夜。審判の時が来た。' },
                     { speaker: 'narrator', text: 'フジが作った「キメラシチュー」が、老店主の前に置かれる。' },
@@ -451,9 +494,14 @@ class CeremonyManager {
                     { speaker: '老店主', text: '甘やかすな、ミナ。ここは厨房だ。結果が全てだ。' },
                     { speaker: 'fuji', text: '...すみませんでした。' },
                     { speaker: 'narrator', text: skillReport.failureSummary },
-                    { speaker: 'narrator', text: 'フジは「ネコノヒゲ亭」を後にした。' }
+                    { speaker: 'narrator', text: 'フジは「ネコノヒゲ亭」を後にした。しかし...' }
                 ]
             });
+
+            // Force show retry button after a delay (ensure dialogue is rendered first)
+            setTimeout(() => {
+                this._forceShowRetryButton();
+            }, 500);
         }
     }
 
@@ -608,11 +656,12 @@ class CeremonyManager {
         }
 
         // NOW advance the day counter (after retrospective is complete)
-        this._gameState.update({ day: currentDay + 1 });
+        const nextDay = currentDay + 1;
+        this._gameState.advanceDay(); // This handles overnight recovery and day increment
 
         this._eventBus.emit('ceremony:day_complete', {
             completedDay: currentDay,
-            nextDay: currentDay + 1
+            nextDay: nextDay
         });
 
         // Check for game end conditions AFTER day advances
@@ -651,6 +700,78 @@ class CeremonyManager {
     }
 
     /**
+     * Force show retry button in judgment dialogue
+     * @private
+     */
+    _forceShowRetryButton() {
+        const dialogueEl = document.getElementById('judgment-dialogue');
+        if (!dialogueEl) {
+            console.warn('CeremonyManager: judgment-dialogue element not found');
+            return;
+        }
+
+        // Check if button already exists
+        if (document.getElementById('judgment-retry-btn')) {
+            return;
+        }
+
+        // Create retry button with inline styles for visibility
+        const retryButton = document.createElement('button');
+        retryButton.id = 'judgment-retry-btn';
+        retryButton.innerHTML = '🔄 修行をやり直す（Day 1へ）';
+        retryButton.setAttribute('style', `
+            width: 100%;
+            padding: 20px;
+            margin-top: 30px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+            color: white;
+            border: 3px solid #FFF;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
+            transition: all 0.3s ease;
+        `);
+
+        // Add hover effect
+        retryButton.addEventListener('mouseenter', () => {
+            retryButton.style.transform = 'translateY(-3px)';
+            retryButton.style.boxShadow = '0 8px 25px rgba(76, 175, 80, 0.8)';
+        });
+        retryButton.addEventListener('mouseleave', () => {
+            retryButton.style.transform = 'translateY(0)';
+            retryButton.style.boxShadow = '0 6px 20px rgba(76, 175, 80, 0.6)';
+        });
+
+        // Add click handler
+        retryButton.addEventListener('click', () => {
+            // Reset state
+            this._gameState.update({
+                day: 1,
+                stamina: 100,
+                currentPhase: 'day',
+                dayActionsRemaining: GameConfig.phases.DAY.actionsAllowed,
+                nightActionsRemaining: GameConfig.phases.NIGHT.actionsAllowed,
+                dishProgress: 0,
+                technicalDebt: GameConfig.techDebt.initial,
+                growth: 0,
+                oldManMood: 70,
+                condition: GameConfig.condition.initial,
+                todayActions: [],
+                spiceCrisisActive: false,
+                judgmentTriggered: false
+            });
+
+            // Reload page
+            location.reload();
+        });
+
+        // Append button to dialogue container
+        dialogueEl.appendChild(retryButton);
+    }
+
+    /**
      * Get reason for game over
      */
     _getGameOverReason(state) {
@@ -668,8 +789,8 @@ class CeremonyManager {
     proceedToNextDay() {
         // CRITICAL: End the retrospective first to advance the day counter
         // This handles the case where there was no Pivot decision
-        // (handlePivotChoice already calls _endRetrospective, so we check phase)
-        if (this._currentPhase === GAME_PHASES.NIGHT) {
+        const currentPhase = this._gameState.get('currentPhase');
+        if (currentPhase === 'night') {
             this._endRetrospective();
         }
 
@@ -681,8 +802,8 @@ class CeremonyManager {
      * Reset for new episode
      */
     _resetDay() {
-        this._currentPhase = GAME_PHASES.MORNING;
         this._actionsThisDay = 0;
+        this._actionsThisNight = 0;
         this._failedActions = [];
         this._dailyFocus = null;
         this._dayStartState = null;
@@ -693,7 +814,7 @@ class CeremonyManager {
     // ===== PUBLIC GETTERS =====
 
     getCurrentPhase() {
-        return this._currentPhase;
+        return this._gameState.get('currentPhase');
     }
 
     getDailyFocus() {
@@ -701,11 +822,18 @@ class CeremonyManager {
     }
 
     getActionsRemaining() {
-        return this._maxActionsPerDay - this._actionsThisDay;
+        const currentPhase = this._gameState.get('currentPhase');
+        if (currentPhase === 'day') {
+            return this._maxActionsPerDay - this._actionsThisDay;
+        } else if (currentPhase === 'night') {
+            return this._maxActionsPerNight - this._actionsThisNight;
+        }
+        return 0;
     }
 
     isActionPhase() {
-        return this._currentPhase === GAME_PHASES.ACTION;
+        const currentPhase = this._gameState.get('currentPhase');
+        return currentPhase === 'day' || currentPhase === 'night';
     }
 }
 

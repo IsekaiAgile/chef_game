@@ -42,6 +42,14 @@
                     <span class="phase-text">準備中</span>
                 </span>
             </div>
+            <!-- Condition Indicator -->
+            <div class="hud-block hud-condition" id="condition-indicator">
+                <span class="hud-label">調子</span>
+                <span class="hud-value condition-value" id="condition-value">
+                    <span class="condition-icon" id="condition-icon">😐</span>
+                    <span class="condition-text" id="condition-text">普通</span>
+                </span>
+            </div>
             <!-- Action Counter -->
             <div class="hud-block hud-actions" id="action-counter">
                 <span class="hud-label">ACTIONS</span>
@@ -135,25 +143,37 @@
         <!-- LAYER 3: Oblique Command Menu (Upper Third) -->
         <div class="pawa-command-menu" id="actions-card">
             <div id="actions" class="command-row">
-                <button class="pawa-cmd-btn cmd-orange" data-action="1">
+                <!-- Day actions (昼の業務) -->
+                <button class="pawa-cmd-btn cmd-orange day-action" data-action="1" data-action-name="cleaning">
                     <span class="cmd-icon">&#x1F37D;</span>
-                    <span class="cmd-label">皿洗い</span>
-                    <span class="cmd-cost">体力15</span>
+                    <span class="cmd-label">掃除・皿洗い</span>
+                    <span class="cmd-cost">体力10</span>
                 </button>
-                <button class="pawa-cmd-btn cmd-blue" data-action="2">
+                <button class="pawa-cmd-btn cmd-blue day-action" data-action="2" data-action-name="chopping">
                     <span class="cmd-icon">&#x1F52A;</span>
                     <span class="cmd-label">下準備</span>
-                    <span class="cmd-cost">体力25</span>
+                    <span class="cmd-cost">体力20</span>
                 </button>
-                <button class="pawa-cmd-btn cmd-green" data-action="3">
+                <button class="pawa-cmd-btn cmd-green day-action" data-action="3" data-action-name="heatControl">
                     <span class="cmd-icon">&#x1F525;</span>
                     <span class="cmd-label">火の番</span>
-                    <span class="cmd-cost">体力35</span>
+                    <span class="cmd-cost">体力30</span>
                 </button>
-                <button class="pawa-cmd-btn cmd-pink" data-action="4" id="rest-btn">
+                <!-- Night actions (夜の自習) - hidden by default -->
+                <button class="pawa-cmd-btn cmd-purple night-action hidden" data-action="1" data-action-name="trialCooking">
+                    <span class="cmd-icon">&#x1F372;</span>
+                    <span class="cmd-label">シチュー試作</span>
+                    <span class="cmd-cost">体力25</span>
+                </button>
+                <button class="pawa-cmd-btn cmd-cyan night-action hidden" data-action="2" data-action-name="study">
+                    <span class="cmd-icon">&#x1F4D6;</span>
+                    <span class="cmd-label">研究</span>
+                    <span class="cmd-cost">体力15</span>
+                </button>
+                <button class="pawa-cmd-btn cmd-pink night-action hidden" data-action="3" data-action-name="rest">
                     <span class="cmd-icon">&#x1F4A4;</span>
-                    <span class="cmd-label">休憩</span>
-                    <span class="cmd-cost">+30回復</span>
+                    <span class="cmd-label">休息</span>
+                    <span class="cmd-cost">+40回復</span>
                 </button>
             </div>
             <!-- Guidance Tooltip (shown when actions depleted) -->
@@ -578,6 +598,46 @@
                     <!-- Reward will be inserted here -->
                 </div>
                 <button class="pawa-btn-primary" id="judgment-continue">続ける</button>
+            </div>
+        </div>
+
+        <!-- ===== CONTINUE SCREEN (After Bad End) ===== -->
+        <div id="continue-overlay" class="hidden overlay-screen continue-overlay">
+            <div class="overlay-content continue-content">
+                <div class="continue-header">
+                    <div class="continue-icon">&#x1F4A4;</div>
+                    <h2 class="continue-title">7日間の試用期間が終了</h2>
+                </div>
+                <div class="continue-message">
+                    <p class="continue-text-main">老店主の厳しい審判の結果、不採用となってしまった...</p>
+                    <p class="continue-text-sub">しかし、フジは諦めない。この経験を活かして、もう一度チャレンジできる。</p>
+                </div>
+                <div class="continue-stats">
+                    <div class="continue-stat-item">
+                        <span class="stat-label">現在のスキル</span>
+                        <div class="stat-skills" id="continue-skills">
+                            <span class="skill-display">包丁: Lv.<span id="continue-skill-cutting">0</span></span>
+                            <span class="skill-display">煮込み: Lv.<span id="continue-skill-boiling">0</span></span>
+                            <span class="skill-display">炒め: Lv.<span id="continue-skill-frying">0</span></span>
+                            <span class="skill-display">分析: Lv.<span id="continue-skill-analysis">0</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="continue-quote">
+                    <p>「次こそは...絶対に認めてもらう！」</p>
+                </div>
+                <div class="continue-options">
+                    <button class="pawa-btn-primary continue-btn-retry" id="continue-retry">
+                        <span class="btn-icon">&#x1F504;</span>
+                        <span class="btn-text">再挑戦する</span>
+                        <span class="btn-desc">スキルを維持したまま、もう一度スプリントに挑戦</span>
+                    </button>
+                    <button class="pawa-btn-secondary continue-btn-title" id="continue-title">
+                        <span class="btn-icon">&#x1F3E0;</span>
+                        <span class="btn-text">タイトルに戻る</span>
+                        <span class="btn-desc">最初からやり直す</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>

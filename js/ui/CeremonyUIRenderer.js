@@ -49,6 +49,8 @@ class CeremonyUIRenderer {
         // Day 7 Judgment
         this._eventBus.on('ceremony:judgment_success', (data) => this._showJudgmentSuccess(data));
         this._eventBus.on('ceremony:judgment_failure', (data) => this._showJudgmentFailure(data));
+        this._eventBus.on('ceremony:judgment_failure_shown', (data) => this._showContinueScreen(data));
+        this._eventBus.on('ceremony:continue_screen_hide', () => this._hideContinueScreen());
     }
 
     // ===== PHASE TRANSITIONS =====
@@ -59,9 +61,9 @@ class CeremonyUIRenderer {
         // Update game container class for day/night effect
         const container = document.getElementById('game-container');
         if (container) {
-            container.classList.remove('morning-transition', 'night-transition');
-            if (phase === 'morning') {
-                container.classList.add('morning-transition');
+            container.classList.remove('morning-transition', 'night-transition', 'day-transition');
+            if (phase === 'day') {
+                container.classList.add('day-transition');
             } else if (phase === 'night') {
                 container.classList.add('night-transition');
             }
@@ -69,6 +71,26 @@ class CeremonyUIRenderer {
 
         // Update Phase Indicator in HUD
         this._updatePhaseIndicator(phase);
+        
+        // Update action buttons visibility
+        this._updateActionButtonsVisibility(phase);
+    }
+
+    /**
+     * Update action buttons visibility based on phase
+     * @private
+     */
+    _updateActionButtonsVisibility(phase) {
+        const dayActions = document.querySelectorAll('.day-action');
+        const nightActions = document.querySelectorAll('.night-action');
+
+        if (phase === 'day') {
+            dayActions.forEach(btn => btn.classList.remove('hidden'));
+            nightActions.forEach(btn => btn.classList.add('hidden'));
+        } else if (phase === 'night') {
+            dayActions.forEach(btn => btn.classList.add('hidden'));
+            nightActions.forEach(btn => btn.classList.remove('hidden'));
+        }
     }
 
     /**
@@ -87,20 +109,15 @@ class CeremonyUIRenderer {
 
         // Set phase-specific display
         switch (phase) {
-            case 'morning':
-                phaseEl.classList.add('phase-morning');
-                if (iconEl) iconEl.textContent = '☀️';
-                if (textEl) textEl.textContent = '朝会';
-                break;
-            case 'action':
+            case 'day':
                 phaseEl.classList.add('phase-action');
-                if (iconEl) iconEl.textContent = '⚔️';
-                if (textEl) textEl.textContent = '実行';
+                if (iconEl) iconEl.textContent = '☀️';
+                if (textEl) textEl.textContent = '昼・業務';
                 break;
             case 'night':
                 phaseEl.classList.add('phase-night');
                 if (iconEl) iconEl.textContent = '🌙';
-                if (textEl) textEl.textContent = '振返';
+                if (textEl) textEl.textContent = '夜・自習';
                 break;
             default:
                 if (iconEl) iconEl.textContent = '⏳';
@@ -112,12 +129,10 @@ class CeremonyUIRenderer {
         const { to } = data;
 
         // Show telop based on phase
-        if (to === 'morning') {
-            this._showTelop('☀️', 'PLANNING PHASE', '毎朝の作戦会議');
+        if (to === 'day') {
+            this._showTelop('☀️', '昼の業務', '3アクション実行可能');
         } else if (to === 'night') {
-            this._showTelop('🌙', 'RETROSPECTIVE', '1日の振り返り');
-        } else if (to === 'action') {
-            this._showTelop('⚔️', 'KITCHEN BATTLE', '厨房の戦い');
+            this._showTelop('🌙', '夜の自習', '1アクション実行可能');
         }
     }
 
@@ -213,8 +228,24 @@ class CeremonyUIRenderer {
         if (commandMenu) commandMenu.style.display = '';
         if (actionsRemaining) actionsRemaining.classList.remove('hidden');
 
-        // Initialize actions remaining to 3
-        this.setActionsRemaining(3);
+        // Update action buttons based on current phase
+        this._updateActionButtons();
+
+        // Initialize actions remaining based on phase
+        const phase = this._eventBus._listeners ? 
+            (this._eventBus._listeners['ceremony:phase_changed'] ? 
+                this._eventBus._lastPhase : null) : null;
+        const maxActions = phase === 'night' ? 1 : 3;
+        this.setActionsRemaining(maxActions);
+    }
+
+    /**
+     * Update action buttons based on current phase
+     * @private
+     */
+    _updateActionButtons() {
+        // This method is called from _showActionPhase
+        // The actual button updates are handled by GameUIRenderer._updateActionButtonsForPhase
     }
 
     _hideActionPhase() {
@@ -537,7 +568,7 @@ class CeremonyUIRenderer {
         overlay.classList.remove('success');
 
         if (resultEl) resultEl.textContent = '不採用...';
-        if (growthEl) growthEl.textContent = `成長: ${data.growth} / ${data.requiredGrowth}`;
+        if (growthEl) growthEl.textContent = `成長: ${data.growth} / ${GameConfig.episode1.growthTarget || 50}`;
 
         if (dialogueEl && data.dialogues) {
             dialogueEl.innerHTML = data.dialogues.map(d => `
@@ -553,9 +584,12 @@ class CeremonyUIRenderer {
         }
 
         if (continueBtn) {
-            continueBtn.textContent = '再挑戦';
-            continueBtn.dataset.action = 'restart';
+            continueBtn.textContent = '続ける';
+            continueBtn.dataset.action = 'show-continue';
         }
+
+        // Emit event to show continue screen after dialogue
+        this._eventBus.emit('ceremony:judgment_failure_shown', data);
     }
 
     /**
@@ -566,6 +600,56 @@ class CeremonyUIRenderer {
         if (overlay) {
             overlay.classList.add('hidden');
         }
+    }
+
+    // ===== CONTINUE SCREEN =====
+
+    /**
+     * Show Continue screen after bad end
+     * @param {Object} data - Game state data
+     */
+    _showContinueScreen(data) {
+        // Wait a bit before showing continue screen (after judgment dialogue)
+        setTimeout(() => {
+            const overlay = document.getElementById('continue-overlay');
+            if (!overlay) return;
+
+            // Hide judgment overlay
+            this.hideJudgment();
+
+            // Update skill displays if state is available
+            if (data && data.state && data.state.skills) {
+                const skills = data.state.skills;
+                const cuttingEl = document.getElementById('continue-skill-cutting');
+                const boilingEl = document.getElementById('continue-skill-boiling');
+                const fryingEl = document.getElementById('continue-skill-frying');
+                const analysisEl = document.getElementById('continue-skill-analysis');
+
+                if (cuttingEl) cuttingEl.textContent = skills.cutting || 0;
+                if (boilingEl) boilingEl.textContent = skills.boiling || 0;
+                if (fryingEl) fryingEl.textContent = skills.frying || 0;
+                if (analysisEl) analysisEl.textContent = skills.analysis || 0;
+            }
+
+            overlay.classList.remove('hidden');
+        }, 3000); // 3秒後に表示
+    }
+
+    /**
+     * Hide Continue screen
+     */
+    _hideContinueScreen() {
+        const overlay = document.getElementById('continue-overlay');
+        if (overlay) {
+            overlay.classList.add('hidden');
+        }
+    }
+
+    /**
+     * Public method to hide continue screen
+     */
+    hideContinueScreen() {
+        this._hideContinueScreen();
     }
 }
 

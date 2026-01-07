@@ -312,10 +312,29 @@ class GameApp {
                 if (action === 'next-episode') {
                     // Success: Advance to Episode 2
                     this.startEpisode(2);
+                } else if (action === 'show-continue') {
+                    // Failure: Show continue screen (will be handled by event)
+                    // Continue screen is shown automatically after judgment failure
                 } else {
-                    // Failure: Restart Episode 1
+                    // Legacy: Restart Episode 1
                     this.restart();
                 }
+            });
+        }
+
+        // Continue screen buttons
+        const continueRetry = document.getElementById('continue-retry');
+        const continueTitle = document.getElementById('continue-title');
+
+        if (continueRetry) {
+            continueRetry.addEventListener('click', () => {
+                this.retrySprint();
+            });
+        }
+
+        if (continueTitle) {
+            continueTitle.addEventListener('click', () => {
+                this.restart();
             });
         }
     }
@@ -427,7 +446,29 @@ class GameApp {
     }
 
     /**
-     * Restart the game
+     * Retry sprint while preserving skills
+     */
+    retrySprint() {
+        // Hide continue screen
+        this._ceremonyUIRenderer.hideContinueScreen();
+
+        // Retry sprint in GameState (preserves skills)
+        this._gameState.retrySprint();
+
+        // Reset ceremony manager
+        this._ceremonyManager._resetDay();
+
+        // Update UI
+        this._gameUIRenderer.update(this._gameState.getState());
+
+        // Start new day with morning stand-up
+        setTimeout(() => {
+            this._ceremonyManager.startNewDay();
+        }, 500);
+    }
+
+    /**
+     * Restart the game (full reset)
      */
     restart() {
         // Reset state
@@ -454,6 +495,9 @@ class GameApp {
 
         // Reset VN state
         document.body.classList.remove('vn-active');
+
+        // Hide continue screen if visible
+        this._ceremonyUIRenderer.hideContinueScreen();
 
         // Restart from intro
         this.start();

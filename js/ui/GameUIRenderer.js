@@ -76,7 +76,8 @@ class GameUIRenderer {
             'skill-frying-level', 'skill-frying-grade', 'skill-frying-exp',
             'skill-plating-level', 'skill-plating-grade', 'skill-plating-exp',
             'cycle-count', 'cycle-hint',
-            'result', 'message', 'game-container', 'floating-text-container'
+            'result', 'message', 'game-container', 'floating-text-container',
+            'condition-icon', 'condition-text', 'condition-indicator', 'condition-value'
         ];
 
         elementIds.forEach(id => {
@@ -127,6 +128,8 @@ class GameUIRenderer {
         this._eventBus.on(GameEvents.PERFECT_CYCLE, this._onPerfectCycle.bind(this));
         this._eventBus.on('action:critical_success', this._onCriticalSuccess.bind(this));
         this._eventBus.on('skill:level_up', this._onSkillLevelUp.bind(this));
+        this._eventBus.on('ceremony:phase_changed', this._onPhaseChanged.bind(this));
+        this._eventBus.on('condition:changed', this._onConditionChanged.bind(this));
     }
 
     // ===== Event Handlers =====
@@ -351,6 +354,8 @@ class GameUIRenderer {
         this._renderSkillPanel(state);
         this._renderStaminaBar(state);
         this._renderActionButtons(state);
+        this._renderCondition(state);
+        this._updateActionButtonsForPhase(state);
     }
 
     _renderScoreboard(state) {
@@ -764,6 +769,85 @@ class GameUIRenderer {
         this._prevState = { ...state };
         this._cachedValues = {}; // Clear cache to force full update
         this._renderAll(state);
+    }
+
+    /**
+     * Render condition (調子) indicator
+     * @private
+     */
+    _renderCondition(state) {
+        if (!state.condition) return;
+
+        const conditionInfo = this._getConditionInfo(state.condition);
+        const cacheKey = `condition-${state.condition}`;
+
+        this._updateIfChanged('condition', cacheKey, () => {
+            const iconEl = document.getElementById('condition-icon');
+            const textEl = document.getElementById('condition-text');
+            const conditionEl = document.getElementById('condition-indicator');
+
+            if (iconEl) iconEl.textContent = conditionInfo.icon;
+            if (textEl) textEl.textContent = conditionInfo.name;
+            if (conditionEl) {
+                conditionEl.className = `hud-block hud-condition condition-${state.condition}`;
+            }
+        });
+    }
+
+    /**
+     * Get condition info
+     * @private
+     */
+    _getConditionInfo(conditionId) {
+        const levels = GameConfig.condition.levels;
+        switch (conditionId) {
+            case 'superb': return levels.SUPERB;
+            case 'good': return levels.GOOD;
+            case 'bad': return levels.BAD;
+            case 'terrible': return levels.TERRIBLE;
+            default: return levels.NORMAL;
+        }
+    }
+
+    /**
+     * Update action buttons based on current phase
+     * @private
+     */
+    _updateActionButtonsForPhase(state) {
+        const phase = state.currentPhase || 'day';
+        const dayActions = document.querySelectorAll('.day-action');
+        const nightActions = document.querySelectorAll('.night-action');
+
+        if (phase === 'day') {
+            dayActions.forEach(btn => btn.classList.remove('hidden'));
+            nightActions.forEach(btn => btn.classList.add('hidden'));
+        } else if (phase === 'night') {
+            dayActions.forEach(btn => btn.classList.add('hidden'));
+            nightActions.forEach(btn => btn.classList.remove('hidden'));
+        }
+    }
+
+    /**
+     * Handle phase changed event
+     * @private
+     */
+    _onPhaseChanged(data) {
+        const state = { currentPhase: data.phase };
+        this._updateActionButtonsForPhase(state);
+        
+        // Update action counter max
+        const maxActions = data.phase === 'night' ? 1 : 3;
+        const maxActionsEl = document.getElementById('actions-max');
+        if (maxActionsEl) maxActionsEl.textContent = maxActions;
+    }
+
+    /**
+     * Handle condition changed event
+     * @private
+     */
+    _onConditionChanged(data) {
+        const state = { condition: data.to };
+        this._renderCondition(state);
     }
 
     /**

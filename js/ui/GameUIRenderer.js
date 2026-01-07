@@ -330,8 +330,13 @@ class GameUIRenderer {
         const el = document.createElement('div');
         el.className = `floating-text ${type}`;
         el.textContent = text;
-        el.style.left = `${x}px`;
-        el.style.top = `${y}px`;
+        
+        // Clamp x/y to viewport bounds for mobile
+        const clampedX = Math.max(10, Math.min(window.innerWidth - 50, x));
+        const clampedY = Math.max(10, Math.min(window.innerHeight - 50, y));
+        
+        el.style.left = `${clampedX}px`;
+        el.style.top = `${clampedY}px`;
 
         container.appendChild(el);
 
@@ -391,9 +396,10 @@ class GameUIRenderer {
             const valEl = this._getElement('growth-val');
             const meterEl = this._getElement('growth-meter');
 
-            if (valEl) valEl.textContent = val;
+            if (valEl) valEl.textContent = val ?? 0;
             if (meterEl) {
-                meterEl.style.width = `${(val / this._config.maxGrowth) * 100}%`;
+                const maxGrowth = this._config.maxGrowth ?? GameConfig.growth?.max ?? 50;
+                meterEl.style.width = `${((val ?? 0) / maxGrowth) * 100}%`;
             }
         });
 
@@ -421,9 +427,10 @@ class GameUIRenderer {
             const valEl = this._getElement('stagnation-val');
             const warningEl = this._getElement('stagnation-warning');
 
-            if (valEl) valEl.textContent = val;
+            if (valEl) valEl.textContent = val ?? 0;
             if (warningEl) {
-                warningEl.style.display = val >= GameConfig.stagnation.warningThreshold ? 'flex' : 'none';
+                const threshold = GameConfig.stagnation?.warningThreshold ?? 60;
+                warningEl.style.display = (val ?? 0) >= threshold ? 'flex' : 'none';
             }
         });
     }
@@ -646,8 +653,8 @@ class GameUIRenderer {
      * @private
      */
     _renderActionButtons(state) {
-        const stamina = state.stamina ?? GameConfig.stamina.initial;
-        const costs = GameConfig.actions.costs;
+        const stamina = state.stamina ?? GameConfig.stamina?.initial ?? 100;
+        const costs = GameConfig.actions?.costs ?? { 1: 10, 2: 20, 3: 30, 4: 0 };
 
         // Only update if stamina changed
         this._updateIfChanged('actionButtons', stamina, () => {
@@ -655,7 +662,7 @@ class GameUIRenderer {
                 const btn = document.querySelector(`[data-action="${actionId}"]`);
                 if (!btn) continue;
 
-                const cost = costs[actionId];
+                const cost = costs[actionId] ?? 0;
                 const canAfford = stamina >= cost || actionId === 4;
 
                 btn.classList.toggle('disabled', !canAfford);
@@ -663,8 +670,9 @@ class GameUIRenderer {
 
                 const costEl = btn.querySelector('.cmd-cost');
                 if (costEl) {
+                    const restRecovery = GameConfig.stamina?.restRecovery ?? 40;
                     costEl.textContent = actionId === 4
-                        ? `+${GameConfig.stamina.restRecovery}回復`
+                        ? `+${restRecovery}回復`
                         : `体力${cost}`;
                 }
             }
@@ -672,7 +680,8 @@ class GameUIRenderer {
             // Highlight rest button if stamina is low
             const restBtn = document.getElementById('rest-btn');
             if (restBtn) {
-                restBtn.classList.toggle('recommended', stamina <= GameConfig.stamina.lowThreshold);
+                const lowThreshold = GameConfig.stamina?.lowThreshold ?? 25;
+                restBtn.classList.toggle('recommended', stamina <= lowThreshold);
             }
         });
     }
@@ -824,6 +833,13 @@ class GameUIRenderer {
         } else if (phase === 'night') {
             dayActions.forEach(btn => btn.classList.add('hidden'));
             nightActions.forEach(btn => btn.classList.remove('hidden'));
+        }
+        
+        // Mobile: Ensure command menu is responsive
+        const commandMenu = document.querySelector('.pawa-command-menu');
+        if (commandMenu && window.innerWidth <= 480) {
+            commandMenu.style.width = '95%';
+            commandMenu.style.maxWidth = '95%';
         }
     }
 

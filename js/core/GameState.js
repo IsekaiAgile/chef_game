@@ -640,6 +640,33 @@ class GameState {
     }
 
     /**
+     * Retry from Day 1 while preserving skills
+     * Simple reset for continue functionality
+     */
+    retryFromDayOne() {
+        // Preserve skills (not reset)
+        this.update({
+            day: 1,
+            stamina: 100,
+            currentPhase: 'day',
+            dayActionsRemaining: GameConfig.phases.DAY.actionsAllowed,
+            nightActionsRemaining: GameConfig.phases.NIGHT.actionsAllowed,
+            dishProgress: 0,
+            technicalDebt: GameConfig.techDebt.initial,
+            growth: 0,
+            oldManMood: 70,
+            condition: GameConfig.condition.initial,
+            todayActions: [],
+            spiceCrisisActive: false,
+            judgmentTriggered: false
+        });
+
+        this._eventBus.emit('game:retry_from_day_one', {
+            newState: this.getState()
+        });
+    }
+
+    /**
      * Retry sprint while preserving skills (continue mode)
      * Resets day to 1, recovers stamina, but keeps skill levels
      */

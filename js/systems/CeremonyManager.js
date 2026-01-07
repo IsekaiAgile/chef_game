@@ -83,8 +83,12 @@ class CeremonyManager {
         });
 
         // Listen for game over/victory to stop ceremony
-        this._eventBus.on(GameEvents.GAME_OVER, () => {
+        this._eventBus.on(GameEvents.GAME_OVER, (data) => {
             this._currentPhase = 'gameover';
+            // Show reset button after a delay to ensure game over screen is displayed
+            setTimeout(() => {
+                this._showResetButton();
+            }, 1000);
         });
 
         this._eventBus.on(GameEvents.GAME_VICTORY, () => {
@@ -719,11 +723,18 @@ class CeremonyManager {
         const retryButton = document.createElement('button');
         retryButton.id = 'judgment-retry-btn';
         retryButton.innerHTML = '🔄 修行をやり直す（Day 1へ）';
+        
+        // Mobile-responsive styles
+        const isMobile = window.innerWidth <= 480;
+        const buttonPadding = isMobile ? '15px' : '20px';
+        const buttonFontSize = isMobile ? '1rem' : '1.3rem';
+        
         retryButton.setAttribute('style', `
             width: 100%;
-            padding: 20px;
+            max-width: 100%;
+            padding: ${buttonPadding};
             margin-top: 30px;
-            font-size: 1.3rem;
+            font-size: ${buttonFontSize};
             font-weight: 700;
             background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
             color: white;
@@ -732,6 +743,7 @@ class CeremonyManager {
             cursor: pointer;
             box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
             transition: all 0.3s ease;
+            box-sizing: border-box;
         `);
 
         // Add hover effect
@@ -769,6 +781,73 @@ class CeremonyManager {
 
         // Append button to dialogue container
         dialogueEl.appendChild(retryButton);
+    }
+
+    /**
+     * Show reset button for game over
+     * @private
+     */
+    _showResetButton() {
+        // Check if button already exists
+        if (document.getElementById('gameover-reset-btn')) {
+            return;
+        }
+
+        // Create reset button with inline styles (mobile-responsive)
+        const resetButton = document.createElement('button');
+        resetButton.id = 'gameover-reset-btn';
+        resetButton.textContent = '最初からやり直す（RESET）';
+        
+        // Mobile-responsive styles
+        const isMobile = window.innerWidth <= 480;
+        const buttonPadding = isMobile ? '15px 30px' : '15px 40px';
+        const buttonFontSize = isMobile ? '1rem' : '1.2rem';
+        const buttonWidth = isMobile ? '90%' : 'auto';
+        const buttonMaxWidth = isMobile ? '90%' : 'none';
+        
+        resetButton.setAttribute('style', `
+            position: fixed;
+            bottom: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            padding: ${buttonPadding};
+            width: ${buttonWidth};
+            max-width: ${buttonMaxWidth};
+            background: #333;
+            color: #fff;
+            border: 2px solid #fff;
+            font-weight: bold;
+            font-size: ${buttonFontSize};
+            cursor: pointer;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        `);
+
+        // Add hover effect
+        resetButton.addEventListener('mouseenter', () => {
+            resetButton.style.background = '#555';
+            resetButton.style.transform = 'translateX(-50%) translateY(-3px)';
+            resetButton.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.7)';
+        });
+        resetButton.addEventListener('mouseleave', () => {
+            resetButton.style.background = '#333';
+            resetButton.style.transform = 'translateX(-50%) translateY(0)';
+            resetButton.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.5)';
+        });
+
+        // Add click handler - complete reset
+        resetButton.addEventListener('click', () => {
+            // Clear all localStorage
+            localStorage.clear();
+            // Reload page for complete reset
+            location.reload();
+        });
+
+        // Append to body
+        document.body.appendChild(resetButton);
     }
 
     /**

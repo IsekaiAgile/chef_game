@@ -5,6 +5,11 @@
  * Centralizing these values makes balancing easier and prevents
  * scattered constants that are hard to maintain.
  *
+ * SUCCESS MODE STYLE (パワプロ風サクセスモード)
+ * - Day/Night phase system with strategic choices
+ * - Condition (調子) system affecting exp gains and success rates
+ * - Special Dish Progress as the main victory metric
+ *
  * @module GameConfig
  */
 
@@ -22,7 +27,7 @@ const GameConfig = {
             cutting: '包丁さばき',
             boiling: '煮込み',
             frying: '炒め',
-            plating: '盛り付け'
+            analysis: '食材分析'
         },
 
         /** Grade thresholds (level → grade) */
@@ -38,6 +43,93 @@ const GameConfig = {
         }
     },
 
+    // ===== CONDITION SYSTEM (調子) =====
+    condition: {
+        /** Condition levels with their effects */
+        levels: {
+            SUPERB: {    // 絶好調
+                id: 'superb',
+                name: '絶好調',
+                icon: '🔥',
+                expMultiplier: 1.5,
+                successBonus: 0.15,
+                dishProgressBonus: 1.3,
+                color: '#FF6B6B'
+            },
+            GOOD: {      // 好調
+                id: 'good',
+                name: '好調',
+                icon: '😊',
+                expMultiplier: 1.2,
+                successBonus: 0.08,
+                dishProgressBonus: 1.15,
+                color: '#4ECDC4'
+            },
+            NORMAL: {    // 普通
+                id: 'normal',
+                name: '普通',
+                icon: '😐',
+                expMultiplier: 1.0,
+                successBonus: 0,
+                dishProgressBonus: 1.0,
+                color: '#95A5A6'
+            },
+            BAD: {       // 不調
+                id: 'bad',
+                name: '不調',
+                icon: '😓',
+                expMultiplier: 0.8,
+                successBonus: -0.10,
+                dishProgressBonus: 0.85,
+                color: '#F39C12'
+            },
+            TERRIBLE: {  // 絶不調
+                id: 'terrible',
+                name: '絶不調',
+                icon: '😵',
+                expMultiplier: 0.5,
+                successBonus: -0.20,
+                dishProgressBonus: 0.6,
+                color: '#8E44AD'
+            }
+        },
+
+        /** Probability weights for condition change on rest */
+        restTransitions: {
+            // Current condition → probabilities for new condition
+            superb:   { superb: 0.4, good: 0.5, normal: 0.1, bad: 0, terrible: 0 },
+            good:     { superb: 0.2, good: 0.5, normal: 0.25, bad: 0.05, terrible: 0 },
+            normal:   { superb: 0.1, good: 0.35, normal: 0.4, bad: 0.1, terrible: 0.05 },
+            bad:      { superb: 0.05, good: 0.25, normal: 0.45, bad: 0.2, terrible: 0.05 },
+            terrible: { superb: 0.02, good: 0.15, normal: 0.43, bad: 0.3, terrible: 0.1 }
+        },
+
+        /** Natural condition decay probability per day */
+        dailyDecayChance: 0.15,
+
+        /** Initial condition */
+        initial: 'normal'
+    },
+
+    // ===== PHASE SYSTEM (Day/Night) =====
+    phases: {
+        /** Phase definitions */
+        DAY: {
+            id: 'day',
+            name: '昼・仕事',
+            icon: '☀️',
+            actionsAllowed: 3,
+            description: '厨房での実践練習'
+        },
+        NIGHT: {
+            id: 'night',
+            name: '夜・自主練',
+            icon: '🌙',
+            actionsAllowed: 1,
+            description: '自分だけの時間'
+        }
+    },
+
     // ===== STAMINA SYSTEM =====
     stamina: {
         /** Maximum stamina value */
@@ -46,14 +138,14 @@ const GameConfig = {
         /** Initial stamina at game start */
         initial: 100,
 
-        /** Stamina recovered overnight during retrospective */
-        overnightRecovery: 40,
+        /** Stamina recovered overnight */
+        overnightRecovery: 50,
 
-        /** Stamina recovered from Rest action */
-        restRecovery: 30,
+        /** Stamina recovered from Night Rest action */
+        restRecovery: 40,
 
         /** Threshold for showing "low stamina" warning */
-        lowThreshold: 30,
+        lowThreshold: 25,
 
         /** UI color thresholds (percentage) */
         colorThresholds: {
@@ -64,38 +156,104 @@ const GameConfig = {
         }
     },
 
-    // ===== ACTION COSTS =====
-    actions: {
-        /** Stamina cost per action */
-        costs: {
-            1: 15,  // 皿洗い (Dishwashing)
-            2: 25,  // 下準備 (Prep Work)
-            3: 35,  // 火の番 (Stovework)
-            4: 0    // 休憩 (Rest) - no cost
-        },
-
-        /** Experience rewards per action (base values, before critical) */
-        expRewards: {
-            1: { // 皿洗い
-                cutting: { base: 20, critical: 40 },
-                boiling: { base: 5, critical: 10 }
+    // ===== DAYTIME ACTIONS =====
+    dayActions: {
+        /** 下準備 (Chopping/Prep) - Builds cutting skill */
+        chopping: {
+            id: 'chopping',
+            name: '下準備',
+            icon: '🔪',
+            staminaCost: 20,
+            expRewards: {
+                cutting: { base: 25, bonus: 40 }
             },
-            2: { // 下準備
-                cutting: { base: 18, critical: 35 },
-                boiling: { base: 15, critical: 30 }
-            },
-            3: { // 火の番
-                frying: { base: 22, critical: 40 },
-                plating: { base: 12, critical: 25 }
-            }
+            techDebtReduction: 0,
+            description: '食材の仕込みで包丁さばきを磨く'
         },
-
-        /** Experience gained even on failure (learning from mistakes) */
-        failureExp: {
-            1: { cutting: 5 },
-            2: { cutting: 8, boiling: 5 },
-            3: { frying: 10, plating: 5 }
+        /** 火の番 (Heat Control) - Builds boiling and frying */
+        heatControl: {
+            id: 'heatControl',
+            name: '火の番',
+            icon: '🔥',
+            staminaCost: 30,
+            expRewards: {
+                boiling: { base: 20, bonus: 35 },
+                frying: { base: 18, bonus: 30 }
+            },
+            techDebtReduction: 0,
+            description: '火加減を学び煮込みと炒めの技術を習得'
+        },
+        /** 掃除/皿洗い (Cleaning) - Reduces tech debt */
+        cleaning: {
+            id: 'cleaning',
+            name: '掃除・皿洗い',
+            icon: '🧹',
+            staminaCost: 10,
+            expRewards: {},
+            techDebtReduction: 8,
+            description: '厨房を清潔に保ち、技術的負債を減らす'
         }
+    },
+
+    // ===== NIGHT ACTIONS =====
+    nightActions: {
+        /** シチュー試作 (Trial Cooking) - Increases dish progress */
+        trialCooking: {
+            id: 'trialCooking',
+            name: 'シチュー試作',
+            icon: '🍲',
+            staminaCost: 25,
+            expRewards: {
+                analysis: { base: 10, bonus: 20 }
+            },
+            description: '名物料理の完成度を上げる実践練習'
+        },
+        /** 研究 (Study) - Significant skill exp gain */
+        study: {
+            id: 'study',
+            name: '研究',
+            icon: '📖',
+            staminaCost: 15,
+            /** Study targets a specific skill chosen by player */
+            expMultiplier: 1.8,
+            description: '集中して特定のスキルを強化'
+        },
+        /** 休息 (Rest) - Recover stamina, improve condition */
+        rest: {
+            id: 'rest',
+            name: '休息',
+            icon: '😴',
+            staminaCost: 0,
+            staminaRecovery: 40,
+            conditionImproveChance: 0.6,
+            description: '体力回復と調子の改善'
+        }
+    },
+
+    // ===== SPECIAL DISH PROGRESS =====
+    dishProgress: {
+        /** Maximum progress (100% = dish complete) */
+        max: 100,
+
+        /** Initial progress */
+        initial: 0,
+
+        /** Base progress per trial cooking (before skill bonuses) */
+        baseProgressPerTrial: 5,
+
+        /**
+         * Skill contribution to dish progress
+         * Formula: baseProgress + sum(skillLevel * weight) * conditionMultiplier
+         */
+        skillWeights: {
+            cutting: 0.8,
+            boiling: 1.2,
+            frying: 0.6,
+            analysis: 0.4
+        },
+
+        /** Minimum progress required for Day 7 success */
+        victoryThreshold: 80
     },
 
     // ===== EPISODE 1: 7-DAY SPRINT =====
@@ -111,10 +269,10 @@ const GameConfig = {
 
         /** Chimera Stew skill requirements for Day 7 Judgment */
         chimeraStewRequirements: {
-            cutting: 8,    // Need Cutting Lv.8+ for proper meat prep
-            boiling: 10,   // Need Boiling Lv.10+ for the stew base
-            frying: 5,     // Need Frying Lv.5+ for aromatics
-            plating: 3     // Need Plating Lv.3+ for presentation
+            cutting: 6,
+            boiling: 8,
+            frying: 4,
+            analysis: 3
         },
 
         /** Legacy growth target (for backward compatibility) */
@@ -123,90 +281,63 @@ const GameConfig = {
 
     // ===== CEREMONY SYSTEM =====
     ceremony: {
-        /** Actions allowed per day */
-        actionsPerDay: 3,
-
         /** Transition animation duration (ms) */
         transitionDuration: 1500,
 
-        /** Delay before night phase starts after last action (ms) */
-        nightTransitionDelay: 1500
+        /** Delay before phase transition (ms) */
+        phaseTransitionDelay: 1000
     },
 
     // ===== SUCCESS RATE MODIFIERS =====
     successRate: {
         /** Base success rate for actions */
-        base: 0.65,
+        base: 0.70,
 
         /** Minimum success rate (floor) */
-        minimum: 0.15,
+        minimum: 0.20,
+
+        /** Maximum success rate (ceiling) */
+        maximum: 0.95,
 
         /** Critical success chance */
-        criticalChance: 0.10,
+        criticalChance: 0.12,
 
         /** Penalties */
         penalties: {
-            lowQuality: -0.20,      // ingredientQuality < 30
-            lowMood: -0.10,         // oldManMood < 30
-            noIngredients: -0.15,   // currentIngredients === 0
-            highDebt: -0.05         // technicalDebt > 10
+            lowStamina: -0.15,      // stamina < 25
+            highDebt: -0.10,        // technicalDebt > 15
+            lowMood: -0.08          // oldManMood < 30
         },
 
         /** Bonuses */
         bonuses: {
-            qualityFocus: 0.10,     // Daily focus: quality
-            pivotBonus: 0.15,       // From pivot decision
-            spiceCrisisExperiment: 0.20  // Experiment during spice crisis
-        },
-
-        /** Spice crisis cooking penalty */
-        spiceCrisisPenalty: -0.20
+            highStamina: 0.05,      // stamina > 80
+            lowDebt: 0.05           // technicalDebt < 5
+        }
     },
 
-    // ===== STAGNATION & CYCLE SYSTEM =====
-    stagnation: {
-        /** Initial stagnation value */
-        initial: 50,
+    // ===== TECH DEBT SYSTEM =====
+    techDebt: {
+        /** Initial tech debt */
+        initial: 0,
 
-        /** Stagnation increase for repeating same action */
-        repeatPenalty: 12,
+        /** Maximum tech debt */
+        max: 30,
 
-        /** Stagnation decrease for varied action */
-        varietyReward: -7,
+        /** Tech debt increase per failed action */
+        failurePenalty: 3,
 
-        /** Perfect cycle bonuses */
-        perfectCycle: {
-            growthBonus: 10,
-            streakBonus: 5,         // Additional bonus for consecutive cycles
-            stagnationReduction: 15,
-            streakStagnationBonus: 5,
-            moodBonus: 5,
-            debtReduction: 3
-        },
+        /** Daily tech debt increase (entropy) */
+        dailyIncrease: 2,
 
-        /** Warning threshold for UI */
-        warningThreshold: 30
-    },
-
-    // ===== INGREDIENT SYSTEM =====
-    ingredients: {
-        /** Starting ingredients */
-        initial: 3,
-
-        /** Maximum ingredients */
-        max: 5,
-
-        /** Overnight replenishment amount */
-        overnightReplenish: 2,
-
-        /** Threshold below which replenishment occurs */
-        replenishThreshold: 3
+        /** Warning threshold */
+        warningThreshold: 15
     },
 
     // ===== UI ANIMATION TIMINGS =====
     ui: {
         /** Level-up notification display duration (ms) */
-        levelUpDuration: 2000,
+        levelUpDuration: 2500,
 
         /** Floating text duration (ms) */
         floatingTextDuration: 2000,
@@ -214,23 +345,40 @@ const GameConfig = {
         /** Screen shake duration (ms) */
         screenShakeDuration: 400,
 
-        /** Perfect cycle overlay duration (ms) */
-        perfectOverlayDuration: 2500,
+        /** Phase transition overlay duration (ms) */
+        phaseTransitionDuration: 1500,
+
+        /** Condition change animation duration (ms) */
+        conditionChangeDuration: 1000,
 
         /** Critical glow effect duration (ms) */
         criticalGlowDuration: 1500
     },
 
-    // ===== GROWTH CALCULATION =====
-    growth: {
-        /**
-         * Growth scaling factor
-         * With 4 skills at max 20 each = 80 total skill levels
-         * Target growth of 50 means: growth = totalSkills * 50 / 26
-         */
-        scaleFactor: 50 / 26,
+    // ===== STAGNATION SYSTEM =====
+    stagnation: {
+        /** Warning threshold for stagnation */
+        warningThreshold: 60,
+        /** Maximum stagnation value */
+        max: 100,
+        /** Initial stagnation */
+        initial: 30
+    },
 
-        /** Maximum growth value */
+    // ===== ACTIONS CONFIG (Legacy button mapping) =====
+    actions: {
+        /** Action costs by button ID (for legacy UI compatibility) */
+        costs: {
+            1: 10,  // Cleaning
+            2: 20,  // Chopping
+            3: 30,  // Heat Control
+            4: 0    // Rest (no cost)
+        }
+    },
+
+    // ===== LEGACY SUPPORT =====
+    growth: {
+        scaleFactor: 50 / 26,
         max: 50
     }
 };
@@ -240,22 +388,33 @@ Object.freeze(GameConfig);
 Object.freeze(GameConfig.skills);
 Object.freeze(GameConfig.skills.names);
 Object.freeze(GameConfig.skills.grades);
+Object.freeze(GameConfig.condition);
+Object.freeze(GameConfig.condition.levels);
+Object.freeze(GameConfig.condition.restTransitions);
+Object.freeze(GameConfig.phases);
 Object.freeze(GameConfig.stamina);
 Object.freeze(GameConfig.stamina.colorThresholds);
-Object.freeze(GameConfig.actions);
-Object.freeze(GameConfig.actions.costs);
-Object.freeze(GameConfig.actions.expRewards);
-Object.freeze(GameConfig.actions.failureExp);
+Object.freeze(GameConfig.dayActions);
+Object.freeze(GameConfig.dayActions.chopping);
+Object.freeze(GameConfig.dayActions.heatControl);
+Object.freeze(GameConfig.dayActions.cleaning);
+Object.freeze(GameConfig.nightActions);
+Object.freeze(GameConfig.nightActions.trialCooking);
+Object.freeze(GameConfig.nightActions.study);
+Object.freeze(GameConfig.nightActions.rest);
+Object.freeze(GameConfig.dishProgress);
+Object.freeze(GameConfig.dishProgress.skillWeights);
 Object.freeze(GameConfig.episode1);
 Object.freeze(GameConfig.episode1.chimeraStewRequirements);
 Object.freeze(GameConfig.ceremony);
 Object.freeze(GameConfig.successRate);
 Object.freeze(GameConfig.successRate.penalties);
 Object.freeze(GameConfig.successRate.bonuses);
-Object.freeze(GameConfig.stagnation);
-Object.freeze(GameConfig.stagnation.perfectCycle);
-Object.freeze(GameConfig.ingredients);
+Object.freeze(GameConfig.techDebt);
 Object.freeze(GameConfig.ui);
+Object.freeze(GameConfig.stagnation);
+Object.freeze(GameConfig.actions);
+Object.freeze(GameConfig.actions.costs);
 Object.freeze(GameConfig.growth);
 
 // Export for ES6 modules

@@ -79,24 +79,81 @@
             </div>
         </div>
 
+        <!-- LAYER 2.5: Skill Panel (Power Pro Style) -->
+        <div class="pawa-skill-panel" id="skill-panel">
+            <div class="skill-header">
+                <span class="skill-title">スキル</span>
+            </div>
+            <div class="skill-grid">
+                <div class="skill-item" data-skill="cutting">
+                    <span class="skill-icon">&#x1F52A;</span>
+                    <span class="skill-name">包丁</span>
+                    <span class="skill-level" id="skill-cutting-level">0</span>
+                    <span class="skill-grade" id="skill-cutting-grade">G</span>
+                    <div class="skill-exp-bar">
+                        <div class="skill-exp-fill" id="skill-cutting-exp"></div>
+                    </div>
+                </div>
+                <div class="skill-item" data-skill="boiling">
+                    <span class="skill-icon">&#x1F372;</span>
+                    <span class="skill-name">煮込み</span>
+                    <span class="skill-level" id="skill-boiling-level">0</span>
+                    <span class="skill-grade" id="skill-boiling-grade">G</span>
+                    <div class="skill-exp-bar">
+                        <div class="skill-exp-fill" id="skill-boiling-exp"></div>
+                    </div>
+                </div>
+                <div class="skill-item" data-skill="frying">
+                    <span class="skill-icon">&#x1F373;</span>
+                    <span class="skill-name">炒め</span>
+                    <span class="skill-level" id="skill-frying-level">0</span>
+                    <span class="skill-grade" id="skill-frying-grade">G</span>
+                    <div class="skill-exp-bar">
+                        <div class="skill-exp-fill" id="skill-frying-exp"></div>
+                    </div>
+                </div>
+                <div class="skill-item" data-skill="plating">
+                    <span class="skill-icon">&#x1F37D;</span>
+                    <span class="skill-name">盛付</span>
+                    <span class="skill-level" id="skill-plating-level">0</span>
+                    <span class="skill-grade" id="skill-plating-grade">G</span>
+                    <div class="skill-exp-bar">
+                        <div class="skill-exp-fill" id="skill-plating-exp"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Stamina Bar -->
+            <div class="stamina-container">
+                <span class="stamina-label">体力</span>
+                <div class="stamina-bar">
+                    <div class="stamina-fill" id="stamina-fill"></div>
+                </div>
+                <span class="stamina-value"><span id="stamina-val">100</span>/100</span>
+            </div>
+        </div>
+
         <!-- LAYER 3: Oblique Command Menu (Upper Third) -->
         <div class="pawa-command-menu" id="actions-card">
             <div id="actions" class="command-row">
                 <button class="pawa-cmd-btn cmd-orange" data-action="1">
-                    <span class="cmd-icon">&#x1F373;</span>
-                    <span class="cmd-label">調理実験</span>
+                    <span class="cmd-icon">&#x1F37D;</span>
+                    <span class="cmd-label">皿洗い</span>
+                    <span class="cmd-cost">体力15</span>
                 </button>
                 <button class="pawa-cmd-btn cmd-blue" data-action="2">
-                    <span class="cmd-icon">&#x1F527;</span>
-                    <span class="cmd-label">レシピ改善</span>
+                    <span class="cmd-icon">&#x1F52A;</span>
+                    <span class="cmd-label">下準備</span>
+                    <span class="cmd-cost">体力25</span>
                 </button>
                 <button class="pawa-cmd-btn cmd-green" data-action="3">
-                    <span class="cmd-icon">&#x1F465;</span>
-                    <span class="cmd-label">味見依頼</span>
+                    <span class="cmd-icon">&#x1F525;</span>
+                    <span class="cmd-label">火の番</span>
+                    <span class="cmd-cost">体力35</span>
                 </button>
-                <button class="pawa-cmd-btn cmd-pink" id="mina-tip-btn">
-                    <span class="cmd-icon">&#x1F4A1;</span>
+                <button class="pawa-cmd-btn cmd-pink" data-action="4" id="rest-btn">
+                    <span class="cmd-icon">&#x1F4A4;</span>
                     <span class="cmd-label">休憩</span>
+                    <span class="cmd-cost">+30回復</span>
                 </button>
             </div>
             <!-- Guidance Tooltip (shown when actions depleted) -->
@@ -527,6 +584,7 @@
 
     <!-- Core modules -->
     <script src="js/core/EventBus.js"></script>
+    <script src="js/core/GameConfig.js"></script>
     <script src="js/core/GameState.js"></script>
     <script src="js/systems/DialogueSystem.js"></script>
     <script src="js/systems/KitchenEngine.js"></script>

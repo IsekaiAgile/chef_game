@@ -3245,3 +3245,374 @@ body {
         padding: 12px;
     }
 }
+
+/* ===== PARAMETRIC TRAINING SYSTEM (Power Pro Style) ===== */
+
+/* Skill Panel - Positioned at right side */
+.pawa-skill-panel {
+    position: absolute;
+    top: 180px;
+    right: 10px;
+    background: var(--hud-bg);
+    border: var(--border-thick) solid var(--hud-border);
+    border-radius: 12px;
+    padding: 12px;
+    z-index: 50;
+    min-width: 160px;
+    box-shadow: var(--shadow-soft);
+}
+
+.skill-header {
+    text-align: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--fantasy-gold-light);
+}
+
+.skill-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-dark);
+    text-shadow: var(--text-shadow);
+}
+
+.skill-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.skill-item {
+    display: grid;
+    grid-template-columns: 24px 1fr 24px 28px;
+    grid-template-rows: auto auto;
+    gap: 4px 6px;
+    align-items: center;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    border: 1px solid var(--fantasy-gold-light);
+    transition: all 0.3s ease;
+}
+
+.skill-item:hover {
+    background: rgba(255, 255, 255, 0.8);
+    transform: translateX(-3px);
+}
+
+.skill-item.level-up-glow {
+    animation: levelUpGlow 0.5s ease-in-out infinite alternate;
+    box-shadow: 0 0 15px var(--pawa-yellow);
+}
+
+@keyframes levelUpGlow {
+    from { box-shadow: 0 0 10px var(--pawa-yellow); }
+    to { box-shadow: 0 0 25px var(--pawa-orange); }
+}
+
+.skill-icon {
+    font-size: 1.1rem;
+    grid-row: span 2;
+}
+
+.skill-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.skill-level {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    text-align: right;
+}
+
+.skill-grade {
+    font-size: 0.85rem;
+    font-weight: 900;
+    text-align: center;
+    padding: 2px 6px;
+    border-radius: 4px;
+    grid-row: span 2;
+}
+
+/* Skill Grade Colors (Power Pro Style) */
+.grade-s { background: linear-gradient(135deg, #FFD700, #FFA500); color: #8B4513; text-shadow: 0 0 5px rgba(255, 215, 0, 0.8); }
+.grade-a { background: linear-gradient(135deg, #FF6B6B, #FF4757); color: white; }
+.grade-b { background: linear-gradient(135deg, #FFA502, #FF7F50); color: white; }
+.grade-c { background: linear-gradient(135deg, #7ED957, #2ED573); color: white; }
+.grade-d { background: linear-gradient(135deg, #70A1FF, #5352ED); color: white; }
+.grade-e { background: linear-gradient(135deg, #A4B0BE, #747D8C); color: white; }
+.grade-f { background: linear-gradient(135deg, #747D8C, #57606F); color: white; }
+.grade-g { background: linear-gradient(135deg, #57606F, #2F3542); color: #CCC; }
+
+.skill-exp-bar {
+    grid-column: 2 / 4;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.skill-exp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--pawa-cyan), var(--pawa-blue));
+    border-radius: 3px;
+    transition: width 0.5s ease;
+    box-shadow: 0 0 5px var(--pawa-cyan);
+}
+
+/* Stamina Container */
+.stamina-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 2px solid var(--fantasy-gold-light);
+}
+
+.stamina-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    min-width: 28px;
+}
+
+.stamina-bar {
+    flex: 1;
+    height: 14px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 7px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.stamina-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.4s ease, background-color 0.4s ease;
+}
+
+/* Stamina Color States */
+.stamina-fill.stamina-high {
+    background: linear-gradient(90deg, #2ED573, #7BED9F);
+    box-shadow: 0 0 8px rgba(46, 213, 115, 0.5);
+}
+
+.stamina-fill.stamina-medium {
+    background: linear-gradient(90deg, #FFA502, #FFEAA7);
+    box-shadow: 0 0 8px rgba(255, 165, 2, 0.5);
+}
+
+.stamina-fill.stamina-low {
+    background: linear-gradient(90deg, #FF7675, #FDCB6E);
+    box-shadow: 0 0 8px rgba(255, 118, 117, 0.5);
+}
+
+.stamina-fill.stamina-critical {
+    background: linear-gradient(90deg, #FF4757, #FF6B81);
+    box-shadow: 0 0 10px rgba(255, 71, 87, 0.7);
+    animation: staminaPulse 0.8s ease-in-out infinite;
+}
+
+@keyframes staminaPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.stamina-value {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    min-width: 50px;
+    text-align: right;
+}
+
+/* Action Button States */
+.pawa-cmd-btn.disabled {
+    opacity: 0.5;
+    filter: grayscale(60%);
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.pawa-cmd-btn.disabled:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.pawa-cmd-btn.recommended {
+    animation: recommendPulse 1.5s ease-in-out infinite;
+    box-shadow: 0 0 20px var(--pawa-pink);
+}
+
+@keyframes recommendPulse {
+    0%, 100% { box-shadow: 0 0 15px var(--pawa-pink); }
+    50% { box-shadow: 0 0 30px var(--pawa-pink), 0 0 45px rgba(255, 143, 177, 0.5); }
+}
+
+.cmd-cost {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin-top: 2px;
+    font-weight: 600;
+}
+
+/* Level-Up Notification Overlay */
+.level-up-notification {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.level-up-notification.show {
+    opacity: 1;
+}
+
+.level-up-notification.hide {
+    opacity: 0;
+}
+
+.level-up-content {
+    text-align: center;
+    background: linear-gradient(180deg, rgba(255, 215, 0, 0.95) 0%, rgba(255, 165, 0, 0.95) 100%);
+    padding: 30px 50px;
+    border-radius: 20px;
+    border: 4px solid #FFD700;
+    box-shadow: 0 0 50px rgba(255, 215, 0, 0.8), inset 0 0 30px rgba(255, 255, 255, 0.3);
+    transform: scale(0.8);
+    transition: transform 0.3s ease;
+}
+
+.level-up-notification.show .level-up-content {
+    transform: scale(1);
+    animation: levelUpBounce 0.5s ease;
+}
+
+@keyframes levelUpBounce {
+    0% { transform: scale(0.5); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.level-up-icon {
+    font-size: 3rem;
+    margin-bottom: 10px;
+    animation: iconSpin 0.5s ease;
+}
+
+@keyframes iconSpin {
+    from { transform: rotate(-10deg) scale(0.5); }
+    to { transform: rotate(0deg) scale(1); }
+}
+
+.level-up-title {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #8B4513;
+    text-shadow: 2px 2px 0 #FFF, -2px -2px 0 #FFF, 2px -2px 0 #FFF, -2px 2px 0 #FFF;
+    margin-bottom: 8px;
+}
+
+.level-up-skill {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #4A3520;
+    margin-bottom: 12px;
+}
+
+.level-up-detail {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+}
+
+.level-up-level {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #4A3520;
+}
+
+.level-up-grade {
+    font-size: 2rem;
+    font-weight: 900;
+    padding: 5px 15px;
+    border-radius: 8px;
+}
+
+/* Responsive Skill Panel */
+@media (max-width: 768px) {
+    .pawa-skill-panel {
+        top: auto;
+        bottom: 180px;
+        right: 5px;
+        min-width: 140px;
+        padding: 8px;
+    }
+
+    .skill-item {
+        grid-template-columns: 20px 1fr 20px 24px;
+        padding: 4px 6px;
+    }
+
+    .skill-icon {
+        font-size: 0.9rem;
+    }
+
+    .skill-name {
+        font-size: 0.65rem;
+    }
+
+    .skill-grade {
+        font-size: 0.75rem;
+        padding: 1px 4px;
+    }
+
+    .stamina-container {
+        gap: 5px;
+        margin-top: 8px;
+        padding-top: 8px;
+    }
+
+    .stamina-bar {
+        height: 10px;
+    }
+
+    .stamina-label,
+    .stamina-value {
+        font-size: 0.7rem;
+    }
+
+    .level-up-content {
+        padding: 20px 30px;
+    }
+
+    .level-up-title {
+        font-size: 1.5rem;
+    }
+
+    .level-up-skill {
+        font-size: 1.2rem;
+    }
+
+    .level-up-level {
+        font-size: 1.4rem;
+    }
+
+    .level-up-grade {
+        font-size: 1.5rem;
+    }
+}

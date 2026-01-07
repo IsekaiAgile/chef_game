@@ -5,24 +5,64 @@
  * - Single Responsibility: Only handles event subscription and publishing
  * - Open/Closed: New event types can be added without modifying this class
  * - Interface Segregation: Subscribers only receive events they subscribe to
+ *
+ * Memory Management:
+ * - Always store and call the unsubscribe function returned by on() when done
+ * - Use once() for one-time handlers to automatically clean up
+ * - Call clear() on scene transitions or game restart to prevent leaks
+ *
+ * @example
+ * // Subscribe and store unsubscribe function
+ * const unsubscribe = eventBus.on('game:state:changed', handler);
+ *
+ * // Later, clean up when component is destroyed
+ * unsubscribe();
+ *
+ * // Or for class-based cleanup
+ * class MyClass {
+ *   constructor(eventBus) {
+ *     this._unsubscribers = [];
+ *     this._unsubscribers.push(eventBus.on('event1', this.handler1.bind(this)));
+ *     this._unsubscribers.push(eventBus.on('event2', this.handler2.bind(this)));
+ *   }
+ *
+ *   destroy() {
+ *     this._unsubscribers.forEach(unsub => unsub());
+ *     this._unsubscribers = [];
+ *   }
+ * }
  */
 class EventBus {
     constructor() {
+        /** @private @type {Map<string, Set<Function>>} */
         this._listeners = new Map();
+
+        /** @private @type {Map<string, Set<Function>>} */
         this._onceListeners = new Map();
+
+        /** @private - Track listener counts for debugging */
+        this._stats = {
+            totalSubscriptions: 0,
+            totalEmissions: 0,
+            peakListeners: 0
+        };
     }
 
     /**
      * Subscribe to an event
      * @param {string} event - Event name
      * @param {Function} callback - Handler function
-     * @returns {Function} Unsubscribe function
+     * @returns {Function} Unsubscribe function - ALWAYS store and call this to prevent memory leaks
      */
     on(event, callback) {
         if (!this._listeners.has(event)) {
             this._listeners.set(event, new Set());
         }
         this._listeners.get(event).add(callback);
+
+        // Track stats
+        this._stats.totalSubscriptions++;
+        this._updatePeakListeners();
 
         // Return unsubscribe function
         return () => this.off(event, callback);
@@ -96,6 +136,77 @@ class EventBus {
             this._listeners.clear();
             this._onceListeners.clear();
         }
+    }
+
+    // ===== Debugging & Monitoring =====
+
+    /**
+     * Update peak listener count for memory monitoring
+     * @private
+     */
+    _updatePeakListeners() {
+        const current = this.getListenerCount();
+        if (current > this._stats.peakListeners) {
+            this._stats.peakListeners = current;
+        }
+    }
+
+    /**
+     * Get total number of active listeners across all events
+     * @returns {number} Total listener count
+     */
+    getListenerCount() {
+        let count = 0;
+        this._listeners.forEach(set => count += set.size);
+        this._onceListeners.forEach(set => count += set.size);
+        return count;
+    }
+
+    /**
+     * Get number of listeners for a specific event
+     * @param {string} event - Event name
+     * @returns {number} Listener count for event
+     */
+    getEventListenerCount(event) {
+        let count = 0;
+        if (this._listeners.has(event)) {
+            count += this._listeners.get(event).size;
+        }
+        if (this._onceListeners.has(event)) {
+            count += this._onceListeners.get(event).size;
+        }
+        return count;
+    }
+
+    /**
+     * Get EventBus statistics for debugging
+     * Useful for detecting memory leaks (growing listener counts)
+     * @returns {Object} Stats object
+     */
+    getStats() {
+        return {
+            ...this._stats,
+            currentListeners: this.getListenerCount(),
+            eventTypes: this._listeners.size + this._onceListeners.size,
+            events: Array.from(this._listeners.keys())
+        };
+    }
+
+    /**
+     * Log current listener state (for debugging)
+     */
+    debugLog() {
+        console.group('EventBus Debug');
+        console.log('Stats:', this.getStats());
+        console.log('Regular Listeners:');
+        this._listeners.forEach((set, event) => {
+            console.log(`  ${event}: ${set.size} listener(s)`);
+        });
+        console.log('Once Listeners:');
+        this._onceListeners.forEach((set, event) => {
+            console.log(`  ${event}: ${set.size} listener(s)`);
+        });
+        console.groupEnd();
     }
 }
 

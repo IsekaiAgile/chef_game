@@ -77,110 +77,180 @@ class KitchenEngine {
     }
 
     _registerDefaultActions() {
-        // Action 1: イテレーション試食 (Iteration Tasting / Cooking)
+        // ===== PARAMETRIC TRAINING SYSTEM (Power Pro Style) =====
+        // Each action costs stamina and grants skill experience
+        // Skills: cutting (包丁), boiling (煮込み), frying (炒め), plating (盛り付け)
+        // All balancing values are loaded from GameConfig
+
+        /**
+         * Action 1: 皿洗い (Dishwashing) - Low effort, foundation work
+         * Teaches: Cutting basics through prep work
+         * Stamina cost: Low (from GameConfig.actions.costs[1])
+         */
         this.registerAction(1, (state, successRate, isCritical) => {
+            const staminaCost = GameConfig.actions.costs[1];
+            const expRewards = GameConfig.actions.expRewards[1];
+            const failureExp = GameConfig.actions.failureExp[1];
             const success = Math.random() < successRate;
             let message = '';
             const changes = {};
 
-            // Speed focus: No ingredient consumption
-            const focusEffect = state.dailyFocusEffect;
-            if (focusEffect && focusEffect.noIngredientCost) {
-                message += '<div class="result-item buff">⚡ スピード重視：食材消費なし！</div>';
-            } else {
-                changes.currentIngredients = Math.max(0, state.currentIngredients - 1);
+            // Check stamina
+            if (state.stamina < staminaCost) {
+                return {
+                    success: false,
+                    message: '<div class="result-item failure">体力が足りない！休憩が必要だ。</div>',
+                    stateChanges: {},
+                    isCritical: false
+                };
             }
 
-            // Experiment focus: Extra rewards if successful
-            const experimentBonus = (focusEffect && focusEffect.riskBonus && success) ? 1.5 : 1;
+            // Consume stamina
+            changes.stamina = state.stamina - staminaCost;
 
-            if (state.specialCustomer && success) {
-                const bonus = isCritical ? state.specialCustomer.bonus * 2 : state.specialCustomer.bonus;
-                changes.growth = state.growth + bonus;
-                changes.specialChallengeSuccess = state.specialChallengeSuccess + 1;
-                changes.specialCustomer = null;
+            if (success) {
+                // Grant cutting experience (from config)
+                const cuttingExp = isCritical ? expRewards.cutting.critical : expRewards.cutting.base;
+                const boilingExp = isCritical ? expRewards.boiling.critical : expRewards.boiling.base;
+
+                message += `<div class="result-item success">皿洗い：包丁さばき経験 +${cuttingExp}</div>`;
                 if (isCritical) {
-                    changes.technicalDebt = 0;  // Critical resets debt!
-                    message = `<div class="result-item critical">🌟 クリティカル！ ${state.specialCustomer.name}が大絶賛！ 成長 +${bonus}、負債リセット！</div>`;
-                } else {
-                    message = `<div class="result-item success">イテレーション試食：${state.specialCustomer.name}の要求をクリア！ 成長 +${bonus}</div>`;
+                    message = `<div class="result-item critical">🌟 クリティカル！ 完璧な皿洗いで集中力UP！ 包丁 +${cuttingExp}、煮込み +${boilingExp}</div>`;
+                    changes.stagnation = Math.max(0, state.stagnation - 10);
                 }
-            } else if (success) {
-                const baseGrowth = isCritical ? 30 : 15;
-                const growthGain = Math.floor(baseGrowth * experimentBonus);
-                const stagnationReduce = isCritical ? 30 : 15;
-                const moodGain = isCritical ? 20 : 10;
-                changes.growth = state.growth + growthGain;
-                changes.stagnation = Math.max(0, state.stagnation - stagnationReduce);
-                changes.oldManMood = Math.min(100, state.oldManMood + moodGain);
-                if (isCritical) {
-                    changes.technicalDebt = 0;  // Critical resets debt!
-                    message += `<div class="result-item critical">🌟 クリティカル！ 完璧な新味！ 成長 +${growthGain}、負債リセット！</div>`;
-                } else {
-                    const bonusText = experimentBonus > 1 ? ' (挑戦ボーナス!)' : '';
-                    message += `<div class="result-item success">調理：新しい味が成功！ 成長 +${growthGain}${bonusText}</div>`;
-                }
+
+                // Store exp gains for GameState to process
+                changes._skillExpGains = { cutting: cuttingExp, boiling: boilingExp };
+                changes.oldManMood = Math.min(100, state.oldManMood + (isCritical ? 5 : 2));
             } else {
-                changes.oldManMood = Math.max(0, state.oldManMood - 10);  // Reduced from -15
-                changes.technicalDebt = state.technicalDebt + 1;
-                message = '<div class="result-item failure">イテレーション試食：うーん、もう少し工夫が必要かも。技術的負債 +1</div>';
+                message = '<div class="result-item failure">皿洗い：お皿を割ってしまった…店主の機嫌が悪くなった。</div>';
+                changes.oldManMood = Math.max(0, state.oldManMood - 5);
+                changes._skillExpGains = { cutting: failureExp.cutting }; // Still learn from mistakes
             }
 
             return { success, message, stateChanges: changes, isCritical: success && isCritical };
         });
 
-        // Action 2: CI/CDメンテナンス (Maintenance)
+        /**
+         * Action 2: 下準備 (Prep Work / Chopping) - Medium effort, builds foundation
+         * Teaches: Cutting (primary) + Boiling (secondary)
+         * Stamina cost: Medium (from GameConfig.actions.costs[2])
+         */
         this.registerAction(2, (state, successRate, isCritical) => {
+            const staminaCost = GameConfig.actions.costs[2];
+            const expRewards = GameConfig.actions.expRewards[2];
+            const failureExp = GameConfig.actions.failureExp[2];
             const success = Math.random() < successRate;
             let message = '';
             const changes = {};
 
+            // Check stamina
+            if (state.stamina < staminaCost) {
+                return {
+                    success: false,
+                    message: '<div class="result-item failure">体力が足りない！休憩が必要だ。</div>',
+                    stateChanges: {},
+                    isCritical: false
+                };
+            }
+
+            // Consume stamina
+            changes.stamina = state.stamina - staminaCost;
+
+            // Uses ingredients
+            changes.currentIngredients = Math.max(0, state.currentIngredients - 1);
+
             if (success) {
-                const qualityGain = isCritical ? 50 : 30;
-                const ingredientGain = isCritical ? 4 : 2;
-                const debtReduce = isCritical ? state.technicalDebt : 2;  // Critical clears all debt
-                changes.ingredientQuality = Math.min(100, state.ingredientQuality + qualityGain);
-                changes.stagnation = Math.max(0, state.stagnation - (isCritical ? 15 : 5));
-                changes.currentIngredients = Math.min(5, state.currentIngredients + ingredientGain);
-                changes.technicalDebt = Math.max(0, state.technicalDebt - debtReduce);
+                // Grant cutting and boiling experience (from config)
+                const cuttingExp = isCritical ? expRewards.cutting.critical : expRewards.cutting.base;
+                const boilingExp = isCritical ? expRewards.boiling.critical : expRewards.boiling.base;
+
+                message += `<div class="result-item success">下準備：包丁 +${cuttingExp}、煮込み +${boilingExp}</div>`;
                 if (isCritical) {
-                    message = `<div class="result-item critical">🌟 クリティカル！ 厨房が完璧に最適化！ 品質 +${qualityGain}、食材 +${ingredientGain}、負債リセット！</div>`;
-                } else {
-                    message = `<div class="result-item success">CI/CDメンテナンス：厨房を最適化！ 品質 +${qualityGain}、食材 +${ingredientGain}、負債 -2</div>`;
+                    message = `<div class="result-item critical">🌟 クリティカル！ 完璧な下ごしらえ！ 包丁 +${cuttingExp}、煮込み +${boilingExp}</div>`;
+                    changes.ingredientQuality = Math.min(100, state.ingredientQuality + 10);
                 }
+
+                changes._skillExpGains = { cutting: cuttingExp, boiling: boilingExp };
+                changes.oldManMood = Math.min(100, state.oldManMood + (isCritical ? 8 : 3));
+                changes.stagnation = Math.max(0, state.stagnation - (isCritical ? 15 : 5));
             } else {
-                changes.ingredientQuality = Math.max(0, state.ingredientQuality - 5);  // Reduced from -10
-                message = '<div class="result-item failure">CI/CDメンテナンス：少し手間取った。品質 -5</div>';
+                message = '<div class="result-item failure">下準備：食材の切り方が雑だった…品質が少し下がった。</div>';
+                changes.ingredientQuality = Math.max(0, state.ingredientQuality - 5);
+                changes._skillExpGains = { cutting: failureExp.cutting, boiling: failureExp.boiling };
             }
 
             return { success, message, stateChanges: changes, isCritical: success && isCritical };
         });
 
-        // Action 3: ユーザーフィードバック (User Feedback)
+        /**
+         * Action 3: 火の番 (Stovework) - High effort, advanced cooking
+         * Teaches: Frying (primary) + Plating (secondary)
+         * Stamina cost: High (from GameConfig.actions.costs[3])
+         */
         this.registerAction(3, (state, successRate, isCritical) => {
+            const staminaCost = GameConfig.actions.costs[3];
+            const expRewards = GameConfig.actions.expRewards[3];
+            const failureExp = GameConfig.actions.failureExp[3];
             const success = Math.random() < successRate;
             let message = '';
             const changes = {};
 
+            // Check stamina
+            if (state.stamina < staminaCost) {
+                return {
+                    success: false,
+                    message: '<div class="result-item failure">体力が足りない！休憩が必要だ。</div>',
+                    stateChanges: {},
+                    isCritical: false
+                };
+            }
+
+            // Consume stamina
+            changes.stamina = state.stamina - staminaCost;
+
+            // Uses ingredients
+            changes.currentIngredients = Math.max(0, state.currentIngredients - 1);
+
             if (success) {
-                const growthGain = isCritical ? 40 : 20;
-                const moodGain = isCritical ? 15 : 5;
-                changes.growth = state.growth + growthGain;
-                changes.oldManMood = Math.min(100, state.oldManMood + moodGain);
+                // Grant frying and plating experience (from config)
+                const fryingExp = isCritical ? expRewards.frying.critical : expRewards.frying.base;
+                const platingExp = isCritical ? expRewards.plating.critical : expRewards.plating.base;
+
+                message += `<div class="result-item success">火の番：炒め +${fryingExp}、盛り付け +${platingExp}</div>`;
                 if (isCritical) {
-                    changes.technicalDebt = 0;  // Critical resets debt!
-                    changes.stagnation = Math.max(0, state.stagnation - 20);
-                    message = `<div class="result-item critical">🌟 クリティカル！ 顧客が大ファンに！ 成長 +${growthGain}、負債リセット！</div>`;
-                } else {
-                    message = `<div class="result-item success">ユーザーの声：顧客から貴重な洞察を得た！ 成長 +${growthGain}</div>`;
+                    message = `<div class="result-item critical">🌟 クリティカル！ 見事な火加減！ 炒め +${fryingExp}、盛り付け +${platingExp}</div>`;
+                    changes.oldManMood = Math.min(100, state.oldManMood + 15);
                 }
+
+                changes._skillExpGains = { frying: fryingExp, plating: platingExp };
+                changes.oldManMood = Math.min(100, state.oldManMood + (isCritical ? 15 : 5));
+                changes.stagnation = Math.max(0, state.stagnation - (isCritical ? 20 : 8));
             } else {
-                // Neutral outcome instead of pure failure - less punishing
-                changes.oldManMood = Math.min(100, state.oldManMood + 2);  // Small consolation
-                message = '<div class="result-item neutral">ユーザーの声：顧客は満足げに「いつもの」を注文。安定した日。</div>';
+                message = '<div class="result-item failure">火の番：火加減を間違えた…焦がしてしまった。</div>';
+                changes.oldManMood = Math.max(0, state.oldManMood - 8);
+                changes._skillExpGains = { frying: failureExp.frying, plating: failureExp.plating };
             }
 
             return { success, message, stateChanges: changes, isCritical: success && isCritical };
+        });
+
+        /**
+         * Action 4: 休憩 (Rest) - Recover stamina
+         * Recovery amount from GameConfig.stamina.restRecovery
+         */
+        this.registerAction(4, (state, successRate, isCritical) => {
+            const staminaRecovery = GameConfig.stamina.restRecovery;
+            const message = `<div class="result-item buff">休憩：体力が${staminaRecovery}回復した！</div>`;
+
+            return {
+                success: true,
+                message,
+                stateChanges: {
+                    stamina: Math.min(state.maxStamina || GameConfig.stamina.max, state.stamina + staminaRecovery)
+                },
+                isCritical: false
+            };
         });
     }
 
@@ -293,7 +363,43 @@ class KitchenEngine {
         if (handler) {
             actionResult = handler(this._gameState.getState(), successRate, isCritical);
             message += actionResult.message;
+
+            // Extract skill exp gains before updating state
+            const skillExpGains = actionResult.stateChanges._skillExpGains;
+            delete actionResult.stateChanges._skillExpGains;
+
+            // Update regular state changes
             this._gameState.update(actionResult.stateChanges);
+
+            // Process skill experience gains
+            if (skillExpGains) {
+                let levelUpMessage = '';
+                for (const [skill, exp] of Object.entries(skillExpGains)) {
+                    if (exp > 0) {
+                        const result = this._gameState.addSkillExp(skill, exp);
+                        if (result.levelUp) {
+                            const skillNames = {
+                                cutting: '包丁さばき',
+                                boiling: '煮込み',
+                                frying: '炒め',
+                                plating: '盛り付け'
+                            };
+                            const grade = this._gameState.getSkillGrade(result.newLevel);
+                            levelUpMessage += `<div class="result-item level-up">🎉 ${skillNames[skill]}がレベルアップ！ Lv.${result.newLevel} (${grade})</div>`;
+
+                            // Emit level up event for UI effects
+                            this._eventBus.emit('skill:level_up', {
+                                skill,
+                                newLevel: result.newLevel,
+                                grade
+                            });
+                        }
+                    }
+                }
+                if (levelUpMessage) {
+                    message += levelUpMessage;
+                }
+            }
 
             // Emit critical success event for UI effects
             if (actionResult.isCritical) {
@@ -355,9 +461,18 @@ class KitchenEngine {
         this._gameState.adjust('traditionScore', change, 0, 100);
     }
 
+    /**
+     * Check for stagnation due to repeating the same action
+     * Uses stagnation config values from GameConfig
+     * @param {number} currentAction - Current action ID
+     * @param {number} lastAction - Previous action ID
+     * @returns {Object} Result with message and triggered status
+     */
     _checkStagnation(currentAction, lastAction) {
+        const stagnationConfig = GameConfig.stagnation;
+
         if (currentAction === lastAction) {
-            this._gameState.adjust('stagnation', 12, 0, 100);
+            this._gameState.adjust('stagnation', stagnationConfig.repeatPenalty, 0, 100);
             this._gameState.adjust('oldManMood', -5, 0, 100);
             this._gameState.adjust('technicalDebt', 2, 0, 100);
             this._gameState.adjust('traditionScore', 5, 0, 100);
@@ -370,7 +485,7 @@ class KitchenEngine {
                 triggered: true
             };
         } else {
-            this._gameState.adjust('stagnation', -7, 0, 100);
+            this._gameState.adjust('stagnation', stagnationConfig.varietyReward, 0, 100);
             return {
                 message: '<div class="result-item positive">新しいアプローチ！ルーティンを打破。</div>',
                 triggered: false
@@ -378,16 +493,23 @@ class KitchenEngine {
         }
     }
 
+    /**
+     * Check for and apply perfect cycle bonus
+     * Uses perfect cycle bonuses from GameConfig
+     * @returns {Object} Result with message and isPerfect status
+     */
     _checkPerfectCycle() {
         if (this._gameState.isPerfectCycle()) {
             const count = this._gameState.get('perfectCycleCount') + 1;
-            const bonusGrowth = 10 + (count > 1 ? 5 : 0);
-            const bonusStagnation = 15 + (count > 1 ? 5 : 0);
-            const debtReduction = Math.min(this._gameState.get('technicalDebt'), 3);
+            const pcConfig = GameConfig.stagnation.perfectCycle;
+
+            const bonusGrowth = pcConfig.growthBonus + (count > 1 ? pcConfig.streakBonus : 0);
+            const bonusStagnation = pcConfig.stagnationReduction + (count > 1 ? pcConfig.streakStagnationBonus : 0);
+            const debtReduction = Math.min(this._gameState.get('technicalDebt'), pcConfig.debtReduction);
 
             this._gameState.adjust('growth', bonusGrowth, 0, 100);
             this._gameState.adjust('stagnation', -bonusStagnation, 0, 100);
-            this._gameState.adjust('oldManMood', 5, 0, 100);
+            this._gameState.adjust('oldManMood', pcConfig.moodBonus, 0, 100);
             this._gameState.adjust('technicalDebt', -debtReduction, 0, 100);
             this._gameState.update({ perfectCycleCount: count });
 
@@ -405,57 +527,64 @@ class KitchenEngine {
         }
     }
 
+    /**
+     * Calculate action success rate based on game state and modifiers
+     * All rates and modifiers loaded from GameConfig.successRate
+     *
+     * @param {Object} state - Current game state
+     * @param {number} actionId - Action being performed
+     * @returns {number} Success rate (0.0 - 1.0)
+     */
     _calculateSuccessRate(state, actionId) {
-        // GAME DESIGN OVERHAUL: Increased from 0.45 to 0.65 for "Feel-Good" experience
-        let rate = 0.65;
+        const srConfig = GameConfig.successRate;
+        let rate = srConfig.base;
 
-        // Penalties are now less harsh to maintain fun factor
-        if (state.ingredientQuality < 30) rate -= 0.20;
-        if (state.oldManMood < 30) rate -= 0.10;
-        if (state.currentIngredients === 0 && actionId !== 2) rate -= 0.15;
-        if (state.technicalDebt > 10) rate -= 0.05;
+        // Apply penalties from config
+        if (state.ingredientQuality < 30) rate += srConfig.penalties.lowQuality;
+        if (state.oldManMood < 30) rate += srConfig.penalties.lowMood;
+        if (state.currentIngredients === 0 && actionId !== 2) rate += srConfig.penalties.noIngredients;
+        if (state.technicalDebt > 10) rate += srConfig.penalties.highDebt;
 
-        // ===== SPICE CRISIS MODIFIERS (Episode 1, Day 3-4) =====
+        // Spice Crisis modifiers (Episode 1, Day 3-4)
         if (state.spiceCrisisActive) {
             if (actionId === 1) {
-                // Cooking/Quality actions get -20% penalty
-                rate -= 0.20;
+                rate += srConfig.spiceCrisisPenalty;
             }
-            // Note: Experiment focus gets +20% bonus (handled below)
         }
 
         // Daily Focus buffs (from Morning Stand-up)
         const focusEffect = state.dailyFocusEffect;
         if (focusEffect) {
-            // Quality focus: +10% success for cooking (Action 1)
+            // Quality focus: success bonus for affected action
             if (focusEffect.successBonus && focusEffect.affectedAction === actionId) {
                 rate += focusEffect.successBonus;
             }
-            // Experiment focus: risk bonus (-10% but more reward)
-            // During Spice Crisis: Experiment gets +20% instead of -10%
+            // Experiment focus: risk bonus
+            // During Spice Crisis: Experiment gets bonus instead of penalty
             if (focusEffect.riskBonus) {
                 if (state.spiceCrisisActive) {
-                    rate += 0.20;  // Spice Crisis experiment bonus!
+                    rate += srConfig.bonuses.spiceCrisisExperiment;
                 } else {
                     rate -= 0.10;
                 }
             }
         }
 
-        // Pivot bonus from previous day's retrospective (+15%)
+        // Pivot bonus from previous day's retrospective
         if (state.pivotBonus) {
-            rate += 0.15;
+            rate += srConfig.bonuses.pivotBonus;
         }
 
-        return Math.max(0.15, rate);  // Minimum 15% chance
+        return Math.max(srConfig.minimum, rate);
     }
 
     /**
-     * Check for Critical Success (10% chance)
-     * @returns {boolean}
+     * Check for Critical Success
+     * Chance loaded from GameConfig.successRate.criticalChance
+     * @returns {boolean} True if critical success triggered
      */
     _isCriticalSuccess() {
-        return Math.random() < 0.10;
+        return Math.random() < GameConfig.successRate.criticalChance;
     }
 
     _triggerEvents() {

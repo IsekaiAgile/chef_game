@@ -392,17 +392,22 @@ class CeremonyManager {
     /**
      * Trigger the Day 7 Judgment Scene (Episode 1 finale)
      * The Master tastes the Chimera Stew to determine if Fuji passes
+     * Now uses checkChimeraStewRequirements() for skill-based evaluation
      */
     _triggerJudgmentScene(state) {
-        const requiredGrowth = 50;
-        const isSuccess = state.growth >= requiredGrowth;
+        // Use the parametric skill check system
+        const skillCheck = this._gameState.checkChimeraStewRequirements();
+        const isSuccess = skillCheck.passed;
 
         this._gameState.update({ judgmentTriggered: true });
+
+        // Build skill report for dialogue
+        const skillReport = this._buildSkillReport(skillCheck.details);
 
         if (isSuccess) {
             this._eventBus.emit('ceremony:judgment_success', {
                 growth: state.growth,
-                requiredGrowth,
+                skillCheck: skillCheck.details,
                 dialogues: [
                     { speaker: 'narrator', text: '7日目の夜。ついに審判の時が来た。' },
                     { speaker: 'narrator', text: 'フジが作った「キメラシチュー」が、老店主の前に置かれる。' },
@@ -411,7 +416,7 @@ class CeremonyManager {
                     { speaker: 'ミナ', text: '（ドキドキ...）' },
                     { speaker: 'narrator', text: '長い沈黙。店内に緊張が走る。' },
                     { speaker: '老店主', text: '......。' },
-                    { speaker: '老店主', text: '...ワシが2年かけた味を、7日で再現しおったか。' },
+                    { speaker: '老店主', text: skillReport.masterComment },
                     { speaker: 'fuji', text: '...！' },
                     { speaker: '老店主', text: 'まだ荒削りだ。だが...芯は捉えている。' },
                     { speaker: '老店主', text: 'お前の「やり方」...認めてやる。明日から正式に働け。' },
@@ -427,9 +432,12 @@ class CeremonyManager {
                 }
             });
         } else {
+            // Generate failure dialogue based on which skills were lacking
+            const failureComment = this._getFailureComment(skillCheck.details);
+
             this._eventBus.emit('ceremony:judgment_failure', {
                 growth: state.growth,
-                requiredGrowth,
+                skillCheck: skillCheck.details,
                 dialogues: [
                     { speaker: 'narrator', text: '7日目の夜。審判の時が来た。' },
                     { speaker: 'narrator', text: 'フジが作った「キメラシチュー」が、老店主の前に置かれる。' },
@@ -437,15 +445,79 @@ class CeremonyManager {
                     { speaker: 'narrator', text: '老店主は一口含み、すぐにスプーンを置いた。' },
                     { speaker: '老店主', text: '...話にならん。' },
                     { speaker: 'fuji', text: 'そんな...！' },
-                    { speaker: '老店主', text: 'ワシの料理を舐めていたようだな。2年の重みがわかるか？' },
+                    { speaker: '老店主', text: failureComment },
                     { speaker: '老店主', text: '約束通りだ...出て行け。' },
                     { speaker: 'ミナ', text: 'お父さん...！もう少しだけ...！' },
                     { speaker: '老店主', text: '甘やかすな、ミナ。ここは厨房だ。結果が全てだ。' },
                     { speaker: 'fuji', text: '...すみませんでした。' },
-                    { speaker: 'narrator', text: '7日間では足りなかった...' },
+                    { speaker: 'narrator', text: skillReport.failureSummary },
                     { speaker: 'narrator', text: 'フジは「ネコノヒゲ亭」を後にした。' }
                 ]
             });
+        }
+    }
+
+    /**
+     * Build skill report for judgment dialogue
+     */
+    _buildSkillReport(details) {
+        const skillNames = {
+            cutting: '包丁さばき',
+            boiling: '煮込み',
+            frying: '炒め',
+            plating: '盛り付け'
+        };
+
+        const passedSkills = [];
+        const failedSkills = [];
+
+        Object.entries(details).forEach(([skill, data]) => {
+            if (data.passed) {
+                passedSkills.push(skillNames[skill]);
+            } else {
+                failedSkills.push({
+                    name: skillNames[skill],
+                    current: data.current,
+                    required: data.required
+                });
+            }
+        });
+
+        // Master's comment based on performance
+        let masterComment = '...ワシが2年かけた味を、7日で再現しおったか。';
+        if (passedSkills.length === 4) {
+            masterComment = '...完璧だ。この味...ワシを超える日も近いかもしれん。';
+        } else if (details.boiling.passed && details.cutting.passed) {
+            masterComment = '...煮込みと包丁さばき...キメラシチューの核を理解している。';
+        }
+
+        // Failure summary
+        const failureSummary = failedSkills.length > 0
+            ? `${failedSkills.map(s => s.name).join('、')}の技術が足りなかった...`
+            : '7日間では足りなかった...';
+
+        return { masterComment, failureSummary, passedSkills, failedSkills };
+    }
+
+    /**
+     * Get failure comment based on which skills were lacking
+     */
+    _getFailureComment(details) {
+        const failedSkills = [];
+
+        if (!details.boiling.passed) failedSkills.push('煮込み');
+        if (!details.cutting.passed) failedSkills.push('包丁');
+        if (!details.frying.passed) failedSkills.push('炒め');
+        if (!details.plating.passed) failedSkills.push('盛り付け');
+
+        if (failedSkills.includes('煮込み')) {
+            return 'この煮込み...全く火加減がなっておらん。基本ができていない。';
+        } else if (failedSkills.includes('包丁')) {
+            return '食材の切り方が雑だ。これでは味が均一にならん。';
+        } else if (failedSkills.length >= 2) {
+            return `${failedSkills.join('も')}も...何も身についておらんじゃないか。`;
+        } else {
+            return 'ワシの料理を舐めていたようだな。2年の重みがわかるか？';
         }
     }
 
@@ -524,6 +596,16 @@ class CeremonyManager {
             dailyFocusEffect: null
             // NOTE: pivotBonus is cleared in selectDailyFocus() after being used
         });
+
+        // Overnight stamina recovery (Power Pro style)
+        // Recover stamina at night for the next day
+        this._gameState.recoverStamina(40);
+
+        // Also replenish some ingredients overnight (daily delivery)
+        const currentIngredients = this._gameState.get('currentIngredients');
+        if (currentIngredients < 3) {
+            this._gameState.update({ currentIngredients: Math.min(5, currentIngredients + 2) });
+        }
 
         // NOW advance the day counter (after retrospective is complete)
         this._gameState.update({ day: currentDay + 1 });

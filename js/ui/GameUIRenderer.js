@@ -1,36 +1,120 @@
 /**
  * GameUIRenderer - Renders game state to DOM (Tokimeki/PowerPro Style)
  *
+ * This renderer implements several performance optimizations:
+ * - Dirty-checking: Only updates DOM elements when values actually change
+ * - DOM caching: Caches element references to avoid repeated querySelector calls
+ * - Debounced updates: Batches rapid state changes
+ *
  * SOLID Principles:
  * - Single Responsibility: Only renders game UI elements
  * - Interface Segregation: Separate from dialogue UI rendering
  * - Dependency Inversion: Listens to EventBus, doesn't depend on GameState directly
+ *
+ * @class GameUIRenderer
  */
 class GameUIRenderer {
     /**
      * @param {EventBus} eventBus - Event bus for communication
-     * @param {Object} config - Configuration
+     * @param {Object} config - Configuration overrides
      */
     constructor(eventBus, config = {}) {
         this._eventBus = eventBus;
         this._config = {
-            maxGrowth: config.maxGrowth || 50,
+            maxGrowth: config.maxGrowth || GameConfig.growth.max,
             actionNames: config.actionNames || {
-                1: '試食',
-                2: '整備',
-                3: '傾聴'
+                1: '皿洗い',
+                2: '下準備',
+                3: '火の番'
             },
             actionIcons: config.actionIcons || {
-                1: '🍳',
-                2: '🔧',
-                3: '👂'
+                1: '🍽',
+                2: '🔪',
+                3: '🔥'
             }
         };
 
-        // Track previous state for floating text effects
+        /**
+         * Cache of previous state values for dirty-checking
+         * @private
+         * @type {Object}
+         */
+        this._cachedValues = {};
+
+        /**
+         * Cache of DOM element references
+         * @private
+         * @type {Map<string, HTMLElement>}
+         */
+        this._elementCache = new Map();
+
+        /**
+         * Track previous state for floating text effects
+         * @private
+         * @type {Object|null}
+         */
         this._prevState = null;
 
         this._setupEventListeners();
+        this._cacheElements();
+    }
+
+    /**
+     * Cache DOM element references to avoid repeated lookups
+     * @private
+     */
+    _cacheElements() {
+        const elementIds = [
+            'day', 'max-day', 'episode-num', 'episode-title',
+            'growth-val', 'growth-meter', 'mood-val', 'reputation-meter',
+            'stagnation-val', 'stagnation-warning',
+            'quality-val', 'ingredients-val', 'debt-val',
+            'balance-indicator', 'balance-status',
+            'stamina-fill', 'stamina-val',
+            'skill-cutting-level', 'skill-cutting-grade', 'skill-cutting-exp',
+            'skill-boiling-level', 'skill-boiling-grade', 'skill-boiling-exp',
+            'skill-frying-level', 'skill-frying-grade', 'skill-frying-exp',
+            'skill-plating-level', 'skill-plating-grade', 'skill-plating-exp',
+            'cycle-count', 'cycle-hint',
+            'result', 'message', 'game-container', 'floating-text-container'
+        ];
+
+        elementIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) this._elementCache.set(id, el);
+        });
+    }
+
+    /**
+     * Get cached element or query DOM
+     * @private
+     * @param {string} id - Element ID
+     * @returns {HTMLElement|null}
+     */
+    _getElement(id) {
+        if (!this._elementCache.has(id)) {
+            const el = document.getElementById(id);
+            if (el) this._elementCache.set(id, el);
+            return el;
+        }
+        return this._elementCache.get(id);
+    }
+
+    /**
+     * Update element only if value changed (dirty-check)
+     * @private
+     * @param {string} cacheKey - Key for cached value
+     * @param {*} newValue - New value to set
+     * @param {Function} updateFn - Function to call if value changed
+     * @returns {boolean} True if value was updated
+     */
+    _updateIfChanged(cacheKey, newValue, updateFn) {
+        if (this._cachedValues[cacheKey] === newValue) {
+            return false;
+        }
+        this._cachedValues[cacheKey] = newValue;
+        updateFn(newValue);
+        return true;
     }
 
     _setupEventListeners() {
@@ -42,6 +126,7 @@ class GameUIRenderer {
         this._eventBus.on(GameEvents.EPISODE_COMPLETED, this._onEpisodeCompleted.bind(this));
         this._eventBus.on(GameEvents.PERFECT_CYCLE, this._onPerfectCycle.bind(this));
         this._eventBus.on('action:critical_success', this._onCriticalSuccess.bind(this));
+        this._eventBus.on('skill:level_up', this._onSkillLevelUp.bind(this));
     }
 
     // ===== Event Handlers =====
@@ -59,6 +144,8 @@ class GameUIRenderer {
     _onUpdateRequested(data) {
         if (data && data.state) {
             this._prevState = { ...data.state };
+            // Force full re-render by clearing cache
+            this._cachedValues = {};
             this._renderAll(data.state);
         }
     }
@@ -79,7 +166,7 @@ class GameUIRenderer {
     _onVictory(data) {
         const commandMenu = document.querySelector('.pawa-command-menu');
         const endingEl = document.getElementById('ending');
-        const messageEl = document.getElementById('message');
+        const messageEl = this._getElement('message');
 
         if (commandMenu) commandMenu.style.display = 'none';
         if (endingEl) endingEl.classList.remove('hidden');
@@ -94,7 +181,7 @@ class GameUIRenderer {
             this._showEpisode1Clear();
             this._spawnFloatingText('EPISODE 1 CLEAR!', 'perfect', window.innerWidth / 2, window.innerHeight / 3);
         } else if (episode === 2) {
-            const messageEl = document.getElementById('message');
+            const messageEl = this._getElement('message');
             if (messageEl) {
                 messageEl.textContent = '第2話クリア！ 変化への対応力を身につけた！';
             }
@@ -102,50 +189,110 @@ class GameUIRenderer {
     }
 
     _onPerfectCycle(data) {
-        // Screen shake effect
-        const gameContainer = document.getElementById('game-container');
+        const gameContainer = this._getElement('game-container');
         if (gameContainer) {
             gameContainer.classList.add('screen-shake');
-            setTimeout(() => gameContainer.classList.remove('screen-shake'), 500);
+            setTimeout(() => gameContainer.classList.remove('screen-shake'),
+                       GameConfig.ui.screenShakeDuration + 100);
         }
 
-        // Show PERFECT AGILE overlay
         const overlay = document.getElementById('perfect-agile-overlay');
         if (overlay) {
             overlay.classList.remove('hidden');
-            setTimeout(() => overlay.classList.add('hidden'), 2500);
+            setTimeout(() => overlay.classList.add('hidden'),
+                       GameConfig.ui.perfectOverlayDuration);
         }
 
-        // Make all cycle steps pulse with perfect state
         const steps = document.querySelectorAll('.cycle-step');
         steps.forEach(step => {
             step.classList.add('perfect');
             setTimeout(() => step.classList.remove('perfect'), 2000);
         });
 
-        // Trigger Mina's cheer
         this._eventBus.emit('mina:cheer_perfect_cycle', {
             message: 'すごい、フジくん！完璧なアジャイルサイクルだよ！'
         });
     }
 
     _onCriticalSuccess(data) {
-        // Screen shake for critical success
-        const gameContainer = document.getElementById('game-container');
+        const gameContainer = this._getElement('game-container');
         if (gameContainer) {
             gameContainer.classList.add('screen-shake');
-            setTimeout(() => gameContainer.classList.remove('screen-shake'), 400);
+            setTimeout(() => gameContainer.classList.remove('screen-shake'),
+                       GameConfig.ui.screenShakeDuration);
         }
 
-        // Show critical success floating text
         this._spawnFloatingText('🌟 CRITICAL!', 'perfect', window.innerWidth / 2, window.innerHeight / 3);
 
-        // Add glow effect to result panel
         const resultPanel = document.querySelector('.pawa-result-panel');
         if (resultPanel) {
             resultPanel.classList.add('critical-glow');
-            setTimeout(() => resultPanel.classList.remove('critical-glow'), 1500);
+            setTimeout(() => resultPanel.classList.remove('critical-glow'),
+                       GameConfig.ui.criticalGlowDuration);
         }
+    }
+
+    /**
+     * Handle skill level up event
+     * Shows celebratory notification
+     * @param {Object} data - Event data with skill, newLevel, grade
+     */
+    _onSkillLevelUp(data) {
+        const { skill, newLevel, grade } = data;
+        const skillName = GameConfig.skills.names[skill] || skill;
+
+        this._showLevelUpNotification(skillName, newLevel, grade);
+
+        const skillItem = document.querySelector(`.skill-item[data-skill="${skill}"]`);
+        if (skillItem) {
+            skillItem.classList.add('level-up-glow');
+            setTimeout(() => skillItem.classList.remove('level-up-glow'),
+                       GameConfig.ui.levelUpDuration);
+        }
+
+        const gameContainer = this._getElement('game-container');
+        if (gameContainer) {
+            gameContainer.classList.add('screen-shake');
+            setTimeout(() => gameContainer.classList.remove('screen-shake'), 300);
+        }
+    }
+
+    /**
+     * Show level-up notification overlay
+     * @private
+     */
+    _showLevelUpNotification(skillName, newLevel, grade) {
+        const notification = document.createElement('div');
+        notification.className = 'level-up-notification';
+        notification.innerHTML = `
+            <div class="level-up-content">
+                <div class="level-up-icon">🎉</div>
+                <div class="level-up-title">LEVEL UP!</div>
+                <div class="level-up-skill">${skillName}</div>
+                <div class="level-up-detail">
+                    <span class="level-up-level">Lv.${newLevel}</span>
+                    <span class="level-up-grade grade-${grade.toLowerCase()}">${grade}</span>
+                </div>
+            </div>
+        `;
+
+        const container = this._getElement('game-container');
+        if (container) {
+            container.appendChild(notification);
+        }
+
+        requestAnimationFrame(() => {
+            notification.classList.add('show');
+        });
+
+        setTimeout(() => {
+            notification.classList.add('hide');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 500);
+        }, GameConfig.ui.levelUpDuration);
     }
 
     // ===== Floating Text Effects =====
@@ -153,7 +300,7 @@ class GameUIRenderer {
     _showStatChanges(prevState, newState) {
         const changes = [
             { key: 'growth', label: '成長', element: 'growth-meter' },
-            { key: 'stagnation', label: '停滞', element: 'stagnation-meter', invert: true },
+            { key: 'stagnation', label: '停滞', element: 'stagnation-val', invert: true },
             { key: 'oldManMood', label: '機嫌', element: 'mood-val' },
             { key: 'ingredientQuality', label: '品質', element: 'quality-val' }
         ];
@@ -161,19 +308,20 @@ class GameUIRenderer {
         changes.forEach(({ key, label, element, invert }) => {
             const diff = newState[key] - prevState[key];
             if (diff !== 0) {
-                const el = document.getElementById(element);
+                const el = this._getElement(element);
                 if (el) {
                     const rect = el.getBoundingClientRect();
                     const isPositive = invert ? diff < 0 : diff > 0;
                     const text = diff > 0 ? `+${diff}` : `${diff}`;
-                    this._spawnFloatingText(text, isPositive ? 'positive' : 'negative', rect.left + rect.width / 2, rect.top);
+                    this._spawnFloatingText(text, isPositive ? 'positive' : 'negative',
+                                           rect.left + rect.width / 2, rect.top);
                 }
             }
         });
     }
 
     _spawnFloatingText(text, type, x, y) {
-        const container = document.getElementById('floating-text-container');
+        const container = this._getElement('floating-text-container');
         if (!container) return;
 
         const el = document.createElement('div');
@@ -184,15 +332,14 @@ class GameUIRenderer {
 
         container.appendChild(el);
 
-        // Remove after animation
         setTimeout(() => {
             if (el.parentNode) {
                 el.parentNode.removeChild(el);
             }
-        }, 2000);
+        }, GameConfig.ui.floatingTextDuration);
     }
 
-    // ===== Render Methods =====
+    // ===== Render Methods (with dirty-checking) =====
 
     _renderAll(state) {
         this._renderScoreboard(state);
@@ -201,185 +348,332 @@ class GameUIRenderer {
         this._renderBalanceGauge(state);
         this._renderCycleDisplay(state);
         this._renderChallenge(state);
+        this._renderSkillPanel(state);
+        this._renderStaminaBar(state);
+        this._renderActionButtons(state);
     }
 
     _renderScoreboard(state) {
-        const dayEl = document.getElementById('day');
-        const maxDayEl = document.getElementById('max-day');
-        const episodeNumEl = document.getElementById('episode-num');
-        const episodeTitleEl = document.getElementById('episode-title');
+        this._updateIfChanged('day', state.day, (val) => {
+            const el = this._getElement('day');
+            if (el) el.textContent = val;
+        });
 
-        // Show Day X / MaxDays format
-        if (dayEl) dayEl.textContent = state.day;
-        if (maxDayEl) maxDayEl.textContent = state.maxDays || 7;
-        if (episodeNumEl) episodeNumEl.textContent = state.currentEpisode;
+        this._updateIfChanged('maxDays', state.maxDays || 7, (val) => {
+            const el = this._getElement('max-day');
+            if (el) el.textContent = val;
+        });
 
-        const episodeTitles = {
-            1: '7日間の試用期間',
-            2: 'ゴブリン襲来',
-            3: 'ドラゴンの猛攻',
-            4: 'ライバル対決',
-            5: 'エルフ姫の宴'
-        };
-        if (episodeTitleEl) {
-            episodeTitleEl.textContent = episodeTitles[state.currentEpisode] || '';
-        }
+        this._updateIfChanged('currentEpisode', state.currentEpisode, (val) => {
+            const el = this._getElement('episode-num');
+            if (el) el.textContent = val;
+
+            const titleEl = this._getElement('episode-title');
+            const episodeTitles = {
+                1: '7日間の試用期間',
+                2: 'ゴブリン襲来',
+                3: 'ドラゴンの猛攻',
+                4: 'ライバル対決',
+                5: 'エルフ姫の宴'
+            };
+            if (titleEl) titleEl.textContent = episodeTitles[val] || '';
+        });
     }
 
     _renderMeters(state) {
         // Growth gauge
-        const growthValEl = document.getElementById('growth-val');
-        const growthMeterEl = document.getElementById('growth-meter');
+        this._updateIfChanged('growth', state.growth, (val) => {
+            const valEl = this._getElement('growth-val');
+            const meterEl = this._getElement('growth-meter');
+
+            if (valEl) valEl.textContent = val;
+            if (meterEl) {
+                meterEl.style.width = `${(val / this._config.maxGrowth) * 100}%`;
+            }
+        });
+
+        // Near-goal class
         const growthGaugeBlock = document.querySelector('.growth-gauge-block');
-
-        if (growthValEl) growthValEl.textContent = state.growth;
-        if (growthMeterEl) {
-            growthMeterEl.style.width = `${(state.growth / this._config.maxGrowth) * 100}%`;
-        }
-
-        // Add near-goal class when growth is >= 40 (80% of target)
         if (growthGaugeBlock) {
-            if (state.growth >= 40) {
-                growthGaugeBlock.classList.add('near-goal');
-            } else {
-                growthGaugeBlock.classList.remove('near-goal');
+            const nearGoal = state.growth >= 40;
+            if (nearGoal !== this._cachedValues.nearGoal) {
+                this._cachedValues.nearGoal = nearGoal;
+                growthGaugeBlock.classList.toggle('near-goal', nearGoal);
             }
         }
 
-        // Reputation gauge (oldManMood)
-        const moodValEl = document.getElementById('mood-val');
-        const reputationMeterEl = document.getElementById('reputation-meter');
-        if (moodValEl) moodValEl.textContent = state.oldManMood;
-        if (reputationMeterEl) {
-            reputationMeterEl.style.width = `${state.oldManMood}%`;
-        }
+        // Reputation gauge
+        this._updateIfChanged('oldManMood', state.oldManMood, (val) => {
+            const valEl = this._getElement('mood-val');
+            const meterEl = this._getElement('reputation-meter');
+
+            if (valEl) valEl.textContent = val;
+            if (meterEl) meterEl.style.width = `${val}%`;
+        });
 
         // Stagnation display
-        const stagnationValEl = document.getElementById('stagnation-val');
-        const stagnationWarning = document.getElementById('stagnation-warning');
-        if (stagnationValEl) stagnationValEl.textContent = state.stagnation;
+        this._updateIfChanged('stagnation', state.stagnation, (val) => {
+            const valEl = this._getElement('stagnation-val');
+            const warningEl = this._getElement('stagnation-warning');
 
-        // Show/hide stagnation warning based on level
-        if (stagnationWarning) {
-            if (state.stagnation >= 30) {
-                stagnationWarning.style.display = 'flex';
-            } else {
-                stagnationWarning.style.display = 'none';
+            if (valEl) valEl.textContent = val;
+            if (warningEl) {
+                warningEl.style.display = val >= GameConfig.stagnation.warningThreshold ? 'flex' : 'none';
             }
-        }
+        });
     }
 
     _renderSecondaryStats(state) {
-        const moodEl = document.getElementById('mood-val');
-        const qualityEl = document.getElementById('quality-val');
-        const ingredientsEl = document.getElementById('ingredients-val');
-        const debtEl = document.getElementById('debt-val');
+        this._updateIfChanged('ingredientQuality', state.ingredientQuality, (val) => {
+            const el = this._getElement('quality-val');
+            if (el) el.textContent = val;
+        });
 
-        if (moodEl) moodEl.textContent = state.oldManMood;
-        if (qualityEl) qualityEl.textContent = state.ingredientQuality;
-        if (ingredientsEl) ingredientsEl.textContent = state.currentIngredients;
-        if (debtEl) debtEl.textContent = state.technicalDebt;
+        this._updateIfChanged('currentIngredients', state.currentIngredients, (val) => {
+            const el = this._getElement('ingredients-val');
+            if (el) el.textContent = val;
+        });
+
+        this._updateIfChanged('technicalDebt', state.technicalDebt, (val) => {
+            const el = this._getElement('debt-val');
+            if (el) el.textContent = val;
+        });
     }
 
     _renderBalanceGauge(state) {
-        const indicator = document.getElementById('balance-indicator');
-        const status = document.getElementById('balance-status');
-        if (!indicator || !status) return;
+        this._updateIfChanged('traditionScore', state.traditionScore, (val) => {
+            const indicator = this._getElement('balance-indicator');
+            const status = this._getElement('balance-status');
 
-        // Position: 0 = full tradition (left), 100 = full innovation (right)
-        const position = 100 - state.traditionScore;
-        indicator.style.left = `${position}%`;
+            if (indicator) {
+                const position = 100 - val;
+                indicator.style.left = `${position}%`;
+            }
 
-        if (state.traditionScore >= 60) {
-            status.textContent = '伝統寄り：革新が必要！';
-            status.style.color = 'var(--sim-purple)';
-        } else if (state.traditionScore <= 40) {
-            status.textContent = '革新寄り：伝統を尊重せよ！';
-            status.style.color = 'var(--sim-cyan)';
-        } else {
-            status.textContent = '調和達成！バランス良好！';
-            status.style.color = 'var(--sim-yellow)';
-        }
+            if (status) {
+                if (val >= 60) {
+                    status.textContent = '伝統寄り：革新が必要！';
+                    status.style.color = 'var(--sim-purple)';
+                } else if (val <= 40) {
+                    status.textContent = '革新寄り：伝統を尊重せよ！';
+                    status.style.color = 'var(--sim-cyan)';
+                } else {
+                    status.textContent = '調和達成！バランス良好！';
+                    status.style.color = 'var(--sim-yellow)';
+                }
+            }
+        });
     }
 
     _renderCycleDisplay(state) {
         const { actionHistory, perfectCycleCount } = state;
-        const isPerfect = this._isPerfectCycle(actionHistory);
-        const missingActions = this._getMissingActions(actionHistory);
+        const historyKey = actionHistory.join(',');
 
-        // Get last 3 actions to determine which steps are completed
-        const lastThree = actionHistory.slice(-3);
-        const completedActions = new Set(lastThree);
-        const uniqueCount = completedActions.size;
+        this._updateIfChanged('actionHistory', historyKey, () => {
+            const isPerfect = this._isPerfectCycle(actionHistory);
+            const missingActions = this._getMissingActions(actionHistory);
+            const lastThree = actionHistory.slice(-3);
+            const completedActions = new Set(lastThree);
+            const uniqueCount = completedActions.size;
 
-        // Update step indicators (1=調理, 2=分析, 3=対話)
-        for (let i = 1; i <= 3; i++) {
-            const stepEl = document.getElementById(`cycle-step-${i}`);
-            if (stepEl) {
-                stepEl.classList.remove('completed', 'perfect');
-                if (completedActions.has(i)) {
-                    stepEl.classList.add('completed');
-                    if (isPerfect) {
-                        stepEl.classList.add('perfect');
+            // Update step indicators
+            for (let i = 1; i <= 3; i++) {
+                const stepEl = document.getElementById(`cycle-step-${i}`);
+                if (stepEl) {
+                    stepEl.classList.remove('completed', 'perfect');
+                    if (completedActions.has(i)) {
+                        stepEl.classList.add('completed');
+                        if (isPerfect) stepEl.classList.add('perfect');
                     }
                 }
             }
-        }
 
-        // Update counter display
-        const cycleCountEl = document.getElementById('cycle-count');
-        if (cycleCountEl) {
-            cycleCountEl.textContent = uniqueCount;
-        }
+            // Update counter
+            const cycleCountEl = this._getElement('cycle-count');
+            if (cycleCountEl) cycleCountEl.textContent = uniqueCount;
 
-        // Update hint text
-        const hintEl = document.getElementById('cycle-hint');
-        if (hintEl) {
-            if (isPerfect) {
-                hintEl.innerHTML = `<span class="hint-perfect">パーフェクト！${perfectCycleCount > 1 ? ` ${perfectCycleCount}連続！` : ''}</span>`;
-            } else if (uniqueCount >= 2 && missingActions.length === 1) {
-                hintEl.innerHTML = `次は「<strong>${this._config.actionNames[missingActions[0]]}</strong>」でパーフェクト！`;
-            } else if (uniqueCount === 1) {
-                hintEl.textContent = 'あと2種類のアクションでサイクル完成！';
-            } else {
-                hintEl.textContent = '3種類のアクションで完璧なサイクル！';
+            // Update hint
+            const hintEl = this._getElement('cycle-hint');
+            if (hintEl) {
+                if (isPerfect) {
+                    hintEl.innerHTML = `<span class="hint-perfect">パーフェクト！${perfectCycleCount > 1 ? ` ${perfectCycleCount}連続！` : ''}</span>`;
+                } else if (uniqueCount >= 2 && missingActions.length === 1) {
+                    hintEl.innerHTML = `次は「<strong>${this._config.actionNames[missingActions[0]]}</strong>」でパーフェクト！`;
+                } else if (uniqueCount === 1) {
+                    hintEl.textContent = 'あと2種類のアクションでサイクル完成！';
+                } else {
+                    hintEl.textContent = '3種類のアクションで完璧なサイクル！';
+                }
             }
-        }
+        });
     }
 
     _renderChallenge(state) {
-        const challengeEl = document.getElementById('todays-challenge');
-        if (!challengeEl) return;
+        // Challenge changes less frequently, so dirty-check with composite key
+        const challengeKey = `${state.day}-${state.specialCustomer?.name || ''}-${state.requirementChangeActive}`;
 
-        const challenges = [
-            '客足が多い日。迅速な対応が重要！',
-            '老店主が監視中。慎重に行動せよ。',
-            '仕入れ問題発生。リソースを節約！',
-            '曖昧な注文多し。傾聴の好機！',
-            '設備劣化注意。整備に集中すべし。'
-        ];
+        this._updateIfChanged('challenge', challengeKey, () => {
+            const challengeEl = document.getElementById('todays-challenge');
+            if (!challengeEl) return;
 
-        let labelText = '今日の目標';
-        let challengeText = '';
+            const challenges = [
+                '客足が多い日。迅速な対応が重要！',
+                '老店主が監視中。慎重に行動せよ。',
+                '仕入れ問題発生。リソースを節約！',
+                '曖昧な注文多し。傾聴の好機！',
+                '設備劣化注意。整備に集中すべし。'
+            ];
 
-        if (state.specialCustomer) {
-            labelText = '緊急依頼';
-            challengeText = `${state.specialCustomer.name}の要求に対応せよ！`;
-        } else if (state.requirementChangeActive) {
-            labelText = '仕様変更';
-            challengeText = '顧客が注文を変更しました！';
-        } else {
-            challengeText = challenges[state.day % challenges.length];
-        }
+            let labelText = '今日の目標';
+            let challengeText = '';
 
-        challengeEl.innerHTML = `
-            <span class="event-label">${labelText}</span>
-            <span class="event-text">${challengeText}</span>
-        `;
+            if (state.specialCustomer) {
+                labelText = '緊急依頼';
+                challengeText = `${state.specialCustomer.name}の要求に対応せよ！`;
+            } else if (state.requirementChangeActive) {
+                labelText = '仕様変更';
+                challengeText = '顧客が注文を変更しました！';
+            } else {
+                challengeText = challenges[state.day % challenges.length];
+            }
+
+            challengeEl.innerHTML = `
+                <span class="event-label">${labelText}</span>
+                <span class="event-text">${challengeText}</span>
+            `;
+        });
+    }
+
+    /**
+     * Render skill panel (Power Pro style)
+     * Uses dirty-checking to avoid unnecessary DOM updates
+     * @private
+     */
+    _renderSkillPanel(state) {
+        if (!state.skills || !state.experience) return;
+
+        const skillKeys = ['cutting', 'boiling', 'frying', 'plating'];
+
+        skillKeys.forEach((key) => {
+            const level = state.skills[key] || 0;
+            const exp = state.experience[key] || 0;
+            const cacheKey = `skill-${key}`;
+            const valueKey = `${level}-${exp}`;
+
+            this._updateIfChanged(cacheKey, valueKey, () => {
+                const grade = this._getSkillGrade(level);
+
+                // Update level display
+                const levelEl = this._getElement(`skill-${key}-level`);
+                if (levelEl) levelEl.textContent = level;
+
+                // Update grade display
+                const gradeEl = this._getElement(`skill-${key}-grade`);
+                if (gradeEl) {
+                    gradeEl.textContent = grade;
+                    gradeEl.className = `skill-grade grade-${grade.toLowerCase()}`;
+                }
+
+                // Update experience bar
+                const expEl = this._getElement(`skill-${key}-exp`);
+                if (expEl) {
+                    expEl.style.width = `${exp}%`;
+                }
+            });
+        });
+    }
+
+    /**
+     * Get letter grade for skill level
+     * @private
+     */
+    _getSkillGrade(level) {
+        const grades = GameConfig.skills.grades;
+        if (level >= grades.S) return 'S';
+        if (level >= grades.A) return 'A';
+        if (level >= grades.B) return 'B';
+        if (level >= grades.C) return 'C';
+        if (level >= grades.D) return 'D';
+        if (level >= grades.E) return 'E';
+        if (level >= grades.F) return 'F';
+        return 'G';
+    }
+
+    /**
+     * Render stamina bar with color states
+     * @private
+     */
+    _renderStaminaBar(state) {
+        const stamina = state.stamina ?? GameConfig.stamina.initial;
+        const maxStamina = state.maxStamina ?? GameConfig.stamina.max;
+        const percentage = (stamina / maxStamina) * 100;
+        const cacheKey = `stamina-${stamina}-${maxStamina}`;
+
+        this._updateIfChanged('staminaBar', cacheKey, () => {
+            const staminaFill = this._getElement('stamina-fill');
+            if (staminaFill) {
+                staminaFill.style.width = `${percentage}%`;
+
+                // Update color class
+                const thresholds = GameConfig.stamina.colorThresholds;
+                staminaFill.classList.remove('stamina-high', 'stamina-medium', 'stamina-low', 'stamina-critical');
+
+                if (percentage > thresholds.high) {
+                    staminaFill.classList.add('stamina-high');
+                } else if (percentage > thresholds.medium) {
+                    staminaFill.classList.add('stamina-medium');
+                } else if (percentage > thresholds.low) {
+                    staminaFill.classList.add('stamina-low');
+                } else {
+                    staminaFill.classList.add('stamina-critical');
+                }
+            }
+
+            const staminaVal = this._getElement('stamina-val');
+            if (staminaVal) {
+                staminaVal.textContent = Math.floor(stamina);
+            }
+        });
+    }
+
+    /**
+     * Render action buttons with stamina costs and availability
+     * @private
+     */
+    _renderActionButtons(state) {
+        const stamina = state.stamina ?? GameConfig.stamina.initial;
+        const costs = GameConfig.actions.costs;
+
+        // Only update if stamina changed
+        this._updateIfChanged('actionButtons', stamina, () => {
+            for (let actionId = 1; actionId <= 4; actionId++) {
+                const btn = document.querySelector(`[data-action="${actionId}"]`);
+                if (!btn) continue;
+
+                const cost = costs[actionId];
+                const canAfford = stamina >= cost || actionId === 4;
+
+                btn.classList.toggle('disabled', !canAfford);
+                btn.disabled = !canAfford;
+
+                const costEl = btn.querySelector('.cmd-cost');
+                if (costEl) {
+                    costEl.textContent = actionId === 4
+                        ? `+${GameConfig.stamina.restRecovery}回復`
+                        : `体力${cost}`;
+                }
+            }
+
+            // Highlight rest button if stamina is low
+            const restBtn = document.getElementById('rest-btn');
+            if (restBtn) {
+                restBtn.classList.toggle('recommended', stamina <= GameConfig.stamina.lowThreshold);
+            }
+        });
     }
 
     _renderResult(message) {
-        const resultEl = document.getElementById('result');
+        const resultEl = this._getElement('result');
         if (resultEl) {
             resultEl.innerHTML = message;
         }
@@ -408,7 +702,7 @@ class GameUIRenderer {
 
     _showEpisode1Clear() {
         const clearEl = document.getElementById('episode1-clear');
-        const messageEl = document.getElementById('message');
+        const messageEl = this._getElement('message');
 
         if (clearEl) clearEl.classList.remove('hidden');
         if (messageEl) {
@@ -419,27 +713,20 @@ class GameUIRenderer {
     // ===== Public Methods =====
 
     /**
-     * Show game UI elements (Pawapuro-style panels)
+     * Show game UI elements
      */
     showGameUI() {
         const panels = [
-            'pawa-top-hud',
-            'pawa-hero-layer',
-            'pawa-command-menu',
-            'pawa-cycle-float',
-            'pawa-balance-float',
-            'pawa-bottom-hud',
-            'pawa-dialogue-box',
-            'pawa-result-panel'
+            'pawa-top-hud', 'pawa-hero-layer', 'pawa-command-menu',
+            'pawa-cycle-float', 'pawa-balance-float', 'pawa-bottom-hud',
+            'pawa-dialogue-box', 'pawa-result-panel', 'pawa-skill-panel'
         ];
 
-        // Show by class name
         panels.forEach(className => {
             const el = document.querySelector('.' + className);
             if (el) el.style.display = '';
         });
 
-        // Also show by ID for legacy compatibility
         const legacyIds = ['status-card', 'challenge-card', 'actions-card', 'result-card'];
         legacyIds.forEach(id => {
             const el = document.getElementById(id);
@@ -448,18 +735,13 @@ class GameUIRenderer {
     }
 
     /**
-     * Hide game UI elements (Pawapuro-style panels)
+     * Hide game UI elements
      */
     hideGameUI() {
         const panels = [
-            'pawa-top-hud',
-            'pawa-hero-layer',
-            'pawa-command-menu',
-            'pawa-cycle-float',
-            'pawa-balance-float',
-            'pawa-bottom-hud',
-            'pawa-dialogue-box',
-            'pawa-result-panel'
+            'pawa-top-hud', 'pawa-hero-layer', 'pawa-command-menu',
+            'pawa-cycle-float', 'pawa-balance-float', 'pawa-bottom-hud',
+            'pawa-dialogue-box', 'pawa-result-panel', 'pawa-skill-panel'
         ];
 
         panels.forEach(className => {
@@ -475,12 +757,22 @@ class GameUIRenderer {
     }
 
     /**
-     * Update all UI with given state
+     * Update all UI with given state (forces full render)
      * @param {Object} state - Game state
      */
     update(state) {
         this._prevState = { ...state };
+        this._cachedValues = {}; // Clear cache to force full update
         this._renderAll(state);
+    }
+
+    /**
+     * Clear element cache (useful after DOM changes)
+     */
+    clearCache() {
+        this._elementCache.clear();
+        this._cachedValues = {};
+        this._cacheElements();
     }
 }
 

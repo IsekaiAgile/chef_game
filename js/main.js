@@ -157,6 +157,27 @@ class GameApp {
             if (commandMenu) commandMenu.style.display = '';
         });
 
+        // Action buttons re-rendered - log for debugging
+        this._eventBus.on('ui:action_buttons_rendered', (data) => {
+            console.log(`GameApp: Action buttons re-rendered for phase: ${data.phase}, buttons: ${data.buttons.length}`);
+        });
+
+        // CRITICAL: Handle action button clicks from GameUIRenderer
+        // This ensures buttons trigger action execution when clicked
+        this._eventBus.on('ui:action_button_clicked', (data) => {
+            console.log(`GameApp: Action button clicked - actionId: ${data.actionId}, actionName: ${data.actionName}`);
+            // Execute action via KitchenEngine
+            this.executeAction(data.actionId);
+        });
+
+        // Action consumed - ensure UI updates immediately
+        this._eventBus.on('action:consumed', (data) => {
+            console.log(`GameApp: Action consumed, remaining: ${data.remaining}, phase: ${data.phase}`);
+            // Trigger UI update to reflect new remainingActions
+            const currentState = this._gameState.getState();
+            this._gameUIRenderer.update(currentState);
+        });
+
         // Dialogue completion during gameplay - restore HUD
         this._eventBus.on(GameEvents.DIALOGUE_COMPLETED, (data) => {
             if (data.type !== 'intro') {
@@ -179,13 +200,37 @@ class GameApp {
      * Setup DOM event listeners
      */
     _setupDOMListeners() {
-        // Action buttons
-        document.querySelectorAll('[data-action]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const actionId = parseInt(e.currentTarget.dataset.action, 10);
+        // Action buttons - Use event delegation to handle dynamically re-rendered buttons
+        // SPECIFICATION COMPLIANCE: This ensures buttons remain clickable after innerHTML = '' re-rendering
+        const actionsContainer = document.getElementById('actions');
+        if (actionsContainer) {
+            // Remove existing listener if any (to prevent duplicates)
+            actionsContainer.replaceWith(actionsContainer.cloneNode(true));
+            const newContainer = document.getElementById('actions');
+            
+            // Use event delegation on parent container
+            newContainer.addEventListener('click', (e) => {
+                const button = e.target.closest('[data-action]');
+                if (!button) return;
+                
+                // Don't execute if button is disabled
+                if (button.disabled || button.classList.contains('disabled')) {
+                    return;
+                }
+                
+                const actionId = parseInt(button.dataset.action, 10);
+                console.log('Action button clicked:', actionId, button.dataset.actionName);
                 this.executeAction(actionId);
             });
-        });
+        } else {
+            // Fallback: Attach to individual buttons if container not found
+            document.querySelectorAll('[data-action]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const actionId = parseInt(e.currentTarget.dataset.action, 10);
+                    this.executeAction(actionId);
+                });
+            });
+        }
 
         // Choice buttons
         const choiceA = document.getElementById('choice-a');

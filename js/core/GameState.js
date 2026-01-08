@@ -90,11 +90,24 @@ class GameState {
             chimeraStewRequirements: { ...GameConfig.episode1.chimeraStewRequirements },
 
             // Episode 1 specific
-            spiceCrisisActive: false,
             judgmentTriggered: false,
 
             // Story state
             introComplete: false,
+
+            // ===== POLICY SYSTEM (朝の方針選択) =====
+            /**
+             * Current policy: 'quality' (品質重視), 'speed' (スピード重視), 'challenge' (新しい挑戦)
+             * null = 未選択（デフォルト動作）
+             */
+            currentPolicy: null,
+
+            // ===== REST BONUS SYSTEM (集中ボーナス) =====
+            /**
+             * Rest bonus flag: true when "Rest" action was executed
+             * Next action will get +20% exp bonus, then this flag is cleared
+             */
+            hasRestBonus: false,
 
             // Action tracking
             lastAction: null,
@@ -184,7 +197,18 @@ class GameState {
     }
 
     /**
+     * Handle action execution - consume one action from current phase
+     * Unified logic for ALL days (Day 1-7): No day-specific branches
+     * @returns {boolean} True if action was consumed, false if none remaining
+     */
+    handleAction() {
+        return this.consumeAction();
+    }
+
+    /**
      * Consume an action in the current phase
+     * Unified logic: Works the same for Day 1, Day 2, Day 3, ... Day 7
+     * CRITICAL: After consuming action, immediately emit state update to ensure UI is reactive
      * @returns {boolean} True if action was consumed, false if none remaining
      */
     consumeAction() {
@@ -196,12 +220,25 @@ class GameState {
             return false;
         }
 
-        this.update({ [phaseKey]: this._state[phaseKey] - 1 });
+        // Decrement remaining actions (unified for all days)
+        const newRemaining = this._state[phaseKey] - 1;
+        this.update({ [phaseKey]: newRemaining });
+        
+        // CRITICAL: Emit explicit action consumed event to ensure UI updates immediately
+        // This prevents the game from appearing "frozen" after an action
+        this._eventBus.emit('action:consumed', {
+            phase: this._state.currentPhase,
+            remaining: newRemaining,
+            phaseKey
+        });
+        
         return true;
     }
 
     /**
      * Transition from day to night phase
+     * IMPORTANT: This does NOT advance the day or trigger any automatic progression.
+     * The game will wait for user input (clicking a night action button) before proceeding.
      */
     transitionToNight() {
         this.update({
@@ -209,36 +246,55 @@ class GameState {
             nightActionsRemaining: GameConfig.phases.NIGHT.actionsAllowed
         });
 
+        // Emit both event names for compatibility
         this._eventBus.emit('phase:changed', {
             from: 'day',
             to: 'night',
+            phase: 'night',
             day: this._state.day
         });
+        
+        this._eventBus.emit('ceremony:phase_changed', {
+            from: 'day',
+            to: 'night',
+            phase: 'night',
+            day: this._state.day
+        });
+        
+        console.log('GameState: Transitioned to night phase - WAITING for user input (day will NOT advance automatically)');
     }
 
     /**
      * Advance to next day (called after night phase)
+     * Unified logic for ALL days (Day 1-7): No day-specific branches
+     * Recovery: +40 stamina (上限100) - Same for Day 2, Day 3, ..., Day 7
      */
     advanceDay() {
         const newDay = this._state.day + 1;
 
-        // Apply overnight recovery
-        this.recoverStamina(GameConfig.stamina.overnightRecovery);
+        // Apply overnight recovery: +40 stamina (上限100)
+        // Unified recovery logic: Works the same for Day 2, Day 3, ..., Day 7
+        // recoverStamina() automatically clamps to max (100)
+        this.recoverStamina(40);
 
-        // Daily tech debt increase (entropy)
-        this.adjust('technicalDebt', GameConfig.techDebt.dailyIncrease, 0, GameConfig.techDebt.max);
+        // No tech debt system (removed)
 
-        // Possible condition decay
+        // Possible condition decay (unified for all days)
         if (Math.random() < GameConfig.condition.dailyDecayChance) {
             this._decayCondition();
         }
 
+        // Reset day state (unified for all days)
         this.update({
             day: newDay,
             currentPhase: 'day',
             dayActionsRemaining: GameConfig.phases.DAY.actionsAllowed,
             nightActionsRemaining: GameConfig.phases.NIGHT.actionsAllowed,
-            todayActions: []
+            todayActions: [],
+            // Reset policy at the start of each day (player will choose new policy)
+            currentPolicy: null,
+            // Reset rest bonus at the start of each day
+            hasRestBonus: false
         });
 
         this._eventBus.emit('day:advanced', { day: newDay });
@@ -367,7 +423,22 @@ class GameState {
         }
 
         // Apply condition multiplier
-        const multiplier = this.getExpMultiplier();
+        let multiplier = this.getExpMultiplier();
+        
+        // Apply policy multiplier
+        const policyMultiplier = this._getPolicyExpMultiplier();
+        multiplier *= policyMultiplier;
+        
+        // Apply rest bonus (+20% exp) if "Rest" action was executed
+        const restBonusMultiplier = this._state.hasRestBonus ? 1.2 : 1.0;
+        multiplier *= restBonusMultiplier;
+        
+        // Clear rest bonus flag after applying (1-time use)
+        const hadRestBonus = this._state.hasRestBonus;
+        if (hadRestBonus) {
+            this.update({ hasRestBonus: false });
+        }
+        
         const actualExp = Math.floor(baseExp * multiplier);
 
         const maxLevel = GameConfig.skills.maxLevel;
@@ -399,8 +470,75 @@ class GameState {
             newLevel: skills[skillName],
             newExp: experience[skillName],
             actualExpGained: actualExp,
-            multiplier
+            multiplier,
+            policyMultiplier: this._getPolicyExpMultiplier(),
+            restBonusApplied: hadRestBonus,
+            policy: this._state.currentPolicy
         };
+    }
+
+    /**
+     * Get policy-based experience multiplier
+     * @private
+     * @returns {number} Experience multiplier (1.0 = no effect)
+     */
+    _getPolicyExpMultiplier() {
+        const policy = this._state.currentPolicy;
+        if (!policy) return 1.0;
+        
+        switch (policy) {
+            case 'quality': // 品質重視: 経験値 1.5倍
+                return 1.5;
+            case 'speed': // スピード重視: 経験値 0.8倍
+                return 0.8;
+            case 'challenge': // 新しい挑戦: 成功時のみ2倍（成功判定は外部で行う）
+                // ここでは基本倍率1.0を返し、成功判定はhandleAction側で処理
+                return 1.0;
+            default:
+                return 1.0;
+        }
+    }
+
+    /**
+     * Get policy-based stamina cost multiplier
+     * @returns {number} Stamina cost multiplier (1.0 = no effect)
+     */
+    getPolicyStaminaMultiplier() {
+        const policy = this._state.currentPolicy;
+        if (!policy) return 1.0;
+        
+        switch (policy) {
+            case 'quality': // 品質重視: スタミナ消費 1.2倍
+                return 1.2;
+            case 'speed': // スピード重視: スタミナ消費 0.5倍
+                return 0.5;
+            case 'challenge': // 新しい挑戦: 失敗時-30（成功判定は外部で行う）
+                return 1.0;
+            default:
+                return 1.0;
+        }
+    }
+
+    /**
+     * Set the current policy (called every morning)
+     * @param {string} policy - 'quality', 'speed', or 'challenge'
+     */
+    setPolicy(policy) {
+        if (!['quality', 'speed', 'challenge', null].includes(policy)) {
+            console.warn(`GameState.setPolicy: Invalid policy "${policy}", using null`);
+            policy = null;
+        }
+        
+        this.update({ currentPolicy: policy });
+        console.log(`GameState: Policy set to "${policy}"`);
+    }
+
+    /**
+     * Get current policy
+     * @returns {string|null} Current policy
+     */
+    getPolicy() {
+        return this._state.currentPolicy;
     }
 
     /**
@@ -640,33 +778,6 @@ class GameState {
     }
 
     /**
-     * Retry from Day 1 while preserving skills
-     * Simple reset for continue functionality
-     */
-    retryFromDayOne() {
-        // Preserve skills (not reset)
-        this.update({
-            day: 1,
-            stamina: 100,
-            currentPhase: 'day',
-            dayActionsRemaining: GameConfig.phases.DAY.actionsAllowed,
-            nightActionsRemaining: GameConfig.phases.NIGHT.actionsAllowed,
-            dishProgress: 0,
-            technicalDebt: GameConfig.techDebt.initial,
-            growth: 0,
-            oldManMood: 70,
-            condition: GameConfig.condition.initial,
-            todayActions: [],
-            spiceCrisisActive: false,
-            judgmentTriggered: false
-        });
-
-        this._eventBus.emit('game:retry_from_day_one', {
-            newState: this.getState()
-        });
-    }
-
-    /**
      * Retry sprint while preserving skills (continue mode)
      * Resets day to 1, recovers stamina, but keeps skill levels
      */
@@ -702,7 +813,6 @@ class GameState {
             condition: GameConfig.condition.initial,
             todayActions: [],
             actionHistory: [], // Keep history or reset? Resetting for now
-            spiceCrisisActive: false,
             judgmentTriggered: false
         });
 
@@ -740,7 +850,6 @@ class GameState {
 
         if (episodeNumber === 1) {
             updates.maxDays = GameConfig.episode1.maxDays;
-            updates.spiceCrisisActive = false;
             updates.judgmentTriggered = false;
         }
 

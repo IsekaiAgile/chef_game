@@ -50,11 +50,7 @@ class CeremonyManager {
         this._eventBus = eventBus;
         this._gameState = gameState;
 
-        // Current phase tracking (sync with GameState)
-        this._actionsThisDay = 0;
-        this._maxActionsPerDay = 3;
-        this._actionsThisNight = 0;
-        this._maxActionsPerNight = 1;
+        // Phase tracking now uses GameState's remainingActions (unified for all days)
 
         // Daily state
         this._dailyFocus = null;
@@ -63,7 +59,6 @@ class CeremonyManager {
 
         // Episode 1: 7-Day Sprint tracking
         this._maxDays = 7;
-        this._spiceCrisisShown = false;
 
         // Guard flags to prevent double-triggering
         this._isTransitioningToNight = false;
@@ -83,12 +78,8 @@ class CeremonyManager {
         });
 
         // Listen for game over/victory to stop ceremony
-        this._eventBus.on(GameEvents.GAME_OVER, (data) => {
+        this._eventBus.on(GameEvents.GAME_OVER, () => {
             this._currentPhase = 'gameover';
-            // Show reset button after a delay to ensure game over screen is displayed
-            setTimeout(() => {
-                this._showResetButton();
-            }, 1000);
         });
 
         this._eventBus.on(GameEvents.GAME_VICTORY, () => {
@@ -144,19 +135,7 @@ class CeremonyManager {
         const day = state.day;
         const maxDays = state.maxDays || this._maxDays;
 
-        // Check for Spice Crisis (Day 3 of Episode 1)
-        if (state.currentEpisode === 1 && day === 3 && !this._spiceCrisisShown) {
-            this._triggerSpiceCrisis();
-            return;
-        }
-
-        // Check if spice crisis should end (Day 5+)
-        if (state.currentEpisode === 1 && day >= 5 && state.spiceCrisisActive) {
-            this._gameState.update({ spiceCrisisActive: false });
-            this._eventBus.emit('ceremony:crisis_ended', {
-                message: 'スパイスの配達が到着！通常営業に戻る'
-            });
-        }
+        // No spice crisis system (removed)
 
         // Generate contextual morning dialogue
         const dialogues = this._getMorningDialogue(state);
@@ -165,30 +144,11 @@ class CeremonyManager {
             day,
             maxDays,
             dialogues,
-            focusOptions: Object.values(DAILY_FOCUS_OPTIONS),
-            isSpiceCrisis: state.spiceCrisisActive
+            focusOptions: Object.values(DAILY_FOCUS_OPTIONS)
         });
     }
 
-    /**
-     * Trigger the Spice Crisis event on Day 3
-     */
-    _triggerSpiceCrisis() {
-        this._spiceCrisisShown = true;
-        this._gameState.update({ spiceCrisisActive: true });
-
-        this._eventBus.emit('ceremony:spice_crisis', {
-            title: 'スパイス危機発生！',
-            message: 'スパイスの配達が遅れている！店の在庫が空っぽだ！',
-            effect: 'Day 3-4: 調理の成功率-20%、実験の成功率+20%',
-            dialogues: [
-                { speaker: 'ミナ', text: '大変！クミンが届いてないよ！' },
-                { speaker: '老店主', text: 'なんだと...！配達業者め...！' },
-                { speaker: 'ミナ', text: 'フジくん、今日は工夫が必要だね...' },
-                { speaker: 'narrator', text: 'スパイス不足の中、どう乗り越える？' }
-            ]
-        });
-    }
+    // Spice crisis system removed
 
     /**
      * Get contextual morning dialogue based on game state
@@ -204,9 +164,8 @@ class CeremonyManager {
         dialogues.push(masterLine);
 
         // ===== MINA'S ENCOURAGEMENT =====
-        if (state.day === 1) {
-            dialogues.push({ speaker: 'ミナ', text: 'キメラシチュー完成まで7日間...頑張ろう、フジくん！' });
-        } else if (daysRemaining <= 2) {
+        // Unified logic: No day-specific branches (Day 1-7 all use same logic)
+        if (daysRemaining <= 2) {
             dialogues.push({ speaker: 'ミナ', text: `あと${daysRemaining}日...ラストスパートだね！` });
         } else if (state.growth >= 40) {
             dialogues.push({ speaker: 'ミナ', text: 'いい感じ！合格ラインが見えてきたよ！' });
@@ -241,7 +200,8 @@ class CeremonyManager {
         if (state.technicalDebt >= 8) {
             return { speaker: '老店主', text: '...厨房がぐちゃぐちゃだ。こんな状態で料理ができると思うな。' };
         }
-        if (state.growth < 10 && state.day >= 3) {
+        // Unified logic: No day-specific branches
+        if (state.growth < 10) {
             return { speaker: '老店主', text: 'ふん...まだ素人の味だな。ワシを舐めているのか？' };
         }
         if (state.stagnation >= 70) {
@@ -330,7 +290,10 @@ class CeremonyManager {
                     currentPhase: 'night',
                     nightActionsRemaining: GameConfig.phases.NIGHT.actionsAllowed
                 });
-                this._showNightRetrospective();
+                // CRITICAL: Do NOT automatically show retrospective here!
+                // Wait for user to click a night action button first.
+                // The retrospective will ONLY be called from _onActionExecuted() after a night action is executed.
+                console.log('CeremonyManager: Night phase transitioned - WAITING for user to click night action button (retrospective will NOT start automatically)');
             }
 
             this._eventBus.emit('ceremony:phase_changed', {
@@ -354,19 +317,20 @@ class CeremonyManager {
 
         if (currentPhase === 'day') {
             // 昼の業務フェーズ
-            this._actionsThisDay++;
-
             // Track failed actions for Adapt/Pivot logic
             if (data.message && data.message.includes('failure')) {
                 this._failedActions.push(data.actionId);
             }
 
+            // Use GameState's remainingActions as source of truth
+            const remainingActions = this._gameState.getActionsRemaining();
+            
             // Emit remaining actions update
-            const remaining = this._maxActionsPerDay - this._actionsThisDay;
-            this._eventBus.emit('ceremony:actions_remaining', { remaining });
+            this._eventBus.emit('ceremony:actions_remaining', { remaining: remainingActions });
 
-            // Check if day phase should end (3 actions completed)
-            if (this._actionsThisDay >= this._maxActionsPerDay) {
+            // Check if day phase should end (remainingActions === 0)
+            // Unified logic: Works the same for Day 1, Day 2, ..., Day 7
+            if (remainingActions <= 0) {
                 // Set guard flag to prevent double-triggering
                 this._isTransitioningToNight = true;
 
@@ -378,14 +342,15 @@ class CeremonyManager {
             }
         } else if (currentPhase === 'night') {
             // 夜の自習フェーズ
-            this._actionsThisNight++;
-
+            // Use GameState's remainingActions as source of truth
+            const remainingActions = this._gameState.getActionsRemaining();
+            
             // Emit remaining actions update
-            const remaining = this._maxActionsPerNight - this._actionsThisNight;
-            this._eventBus.emit('ceremony:actions_remaining', { remaining });
+            this._eventBus.emit('ceremony:actions_remaining', { remaining: remainingActions });
 
-            // Check if night phase should end (1 action completed)
-            if (this._actionsThisNight >= this._maxActionsPerNight) {
+            // Check if night phase should end (remainingActions === 0)
+            // Unified logic: Works the same for Day 1, Day 2, ..., Day 7
+            if (remainingActions <= 0) {
                 // Night phase complete, proceed to retrospective
                 setTimeout(() => {
                     this._showNightRetrospective();
@@ -410,29 +375,47 @@ class CeremonyManager {
      * Show Night Retrospective summary
      */
     _showNightRetrospective() {
-        const state = this._gameState.getState();
-        const daySummary = this._calculateDaySummary(state);
-        const maxDays = state.maxDays || this._maxDays;
+        // CRITICAL: Error handling to ensure retrospective always shows
+        try {
+            const state = this._gameState.getState();
+            const daySummary = this._calculateDaySummary(state);
+            const maxDays = state?.maxDays || this._maxDays || 7;
 
-        // Check for Day 7 Judgment (Episode 1 final evaluation)
-        // Triggers when we've completed the LAST day's actions (Day 7)
-        if (state.currentEpisode === 1 && state.day === maxDays) {
-            this._triggerJudgmentScene(state);
-            return;
+            // Check for Day 7 Judgment (Episode 1 final evaluation)
+            // Triggers when we've completed the LAST day's actions (Day 7)
+            if (state?.currentEpisode === 1 && state?.day === maxDays) {
+                try {
+                    this._triggerJudgmentScene(state);
+                    return;
+                } catch (error) {
+                    console.error('CeremonyManager: Error triggering judgment scene:', error);
+                    // Fall through to show regular retrospective as fallback
+                }
+            }
+
+            // Check for Adapt/Pivot trigger (same action failed twice)
+            const shouldTriggerPivot = this._checkPivotTrigger();
+
+            this._eventBus.emit('ceremony:night_retro', {
+                day: state?.day || 1,
+                maxDays,
+                summary: daySummary || {},
+                triggerPivot: shouldTriggerPivot,
+                pivotMessage: shouldTriggerPivot ?
+                    'このやり方は上手くいってない…アプローチを変えるべき？' : null
+            });
+        } catch (error) {
+            // CRITICAL: Fallback to show basic retrospective even on error
+            console.error('CeremonyManager: Error in _showNightRetrospective:', error);
+            const state = this._gameState.getState();
+            this._eventBus.emit('ceremony:night_retro', {
+                day: state?.day || 1,
+                maxDays: state?.maxDays || 7,
+                summary: {},
+                triggerPivot: false,
+                pivotMessage: null
+            });
         }
-
-        // Check for Adapt/Pivot trigger (same action failed twice)
-        const shouldTriggerPivot = this._checkPivotTrigger();
-
-        this._eventBus.emit('ceremony:night_retro', {
-            day: state.day,
-            maxDays,
-            summary: daySummary,
-            triggerPivot: shouldTriggerPivot,
-            pivotMessage: shouldTriggerPivot ?
-                'このやり方は上手くいってない…アプローチを変えるべき？' : null,
-            isSpiceCrisis: state.spiceCrisisActive
-        });
     }
 
     /**
@@ -441,14 +424,35 @@ class CeremonyManager {
      * Now uses checkChimeraStewRequirements() for skill-based evaluation
      */
     _triggerJudgmentScene(state) {
-        // Use the parametric skill check system
-        const skillCheck = this._gameState.checkChimeraStewRequirements();
-        const isSuccess = skillCheck.passed;
+        // CRITICAL: Defensive programming - handle undefined skillCheck
+        let skillCheck;
+        try {
+            skillCheck = this._gameState.checkChimeraStewRequirements();
+        } catch (error) {
+            console.error('CeremonyManager: Error checking requirements:', error);
+            // Fallback: Create default skillCheck structure
+            skillCheck = {
+                passed: false,
+                skillsPassed: false,
+                dishComplete: false,
+                dishProgress: state?.dishProgress || 0,
+                details: {
+                    cutting: { passed: false, current: 0, required: 10 },
+                    boiling: { passed: false, current: 0, required: 10 },
+                    frying: { passed: false, current: 0, required: 10 },
+                    analysis: { passed: false, current: 0, required: 10 }
+                }
+            };
+        }
+
+        // CRITICAL: Safe access with null checks
+        const isSuccess = skillCheck?.passed || false;
+        const skillDetails = skillCheck?.details || {};
 
         this._gameState.update({ judgmentTriggered: true });
 
-        // Build skill report for dialogue
-        const skillReport = this._buildSkillReport(skillCheck.details);
+        // Build skill report for dialogue with safe data
+        const skillReport = this._buildSkillReport(skillDetails);
 
         if (isSuccess) {
             this._eventBus.emit('ceremony:judgment_success', {
@@ -479,11 +483,12 @@ class CeremonyManager {
             });
         } else {
             // Generate failure dialogue based on which skills were lacking
-            const failureComment = this._getFailureComment(skillCheck.details);
+            // CRITICAL: Safe access with fallback
+            const failureComment = this._getFailureComment(skillDetails);
 
             this._eventBus.emit('ceremony:judgment_failure', {
-                growth: state.growth,
-                skillCheck: skillCheck.details,
+                growth: state?.growth || 0,
+                skillCheck: skillDetails,
                 state: state, // Include full state for continue screen
                 dialogues: [
                     { speaker: 'narrator', text: '7日目の夜。審判の時が来た。' },
@@ -501,11 +506,6 @@ class CeremonyManager {
                     { speaker: 'narrator', text: 'フジは「ネコノヒゲ亭」を後にした。しかし...' }
                 ]
             });
-
-            // Force show retry button after a delay (ensure dialogue is rendered first)
-            setTimeout(() => {
-                this._forceShowRetryButton();
-            }, 500);
         }
     }
 
@@ -513,24 +513,36 @@ class CeremonyManager {
      * Build skill report for judgment dialogue
      */
     _buildSkillReport(details) {
+        // CRITICAL: Defensive programming - handle undefined details
+        if (!details || typeof details !== 'object') {
+            console.warn('CeremonyManager._buildSkillReport: Invalid details, using defaults');
+            return {
+                masterComment: '...判定に必要なデータが不足している。',
+                failureSummary: 'データ不足により判定できませんでした。',
+                passedSkills: [],
+                failedSkills: []
+            };
+        }
+
         const skillNames = {
             cutting: '包丁さばき',
             boiling: '煮込み',
             frying: '炒め',
-            plating: '盛り付け'
+            analysis: '食材分析'
         };
 
         const passedSkills = [];
         const failedSkills = [];
 
         Object.entries(details).forEach(([skill, data]) => {
-            if (data.passed) {
-                passedSkills.push(skillNames[skill]);
-            } else {
+            // CRITICAL: Safe access with null checks
+            if (data && typeof data === 'object' && data.passed) {
+                passedSkills.push(skillNames[skill] || skill);
+            } else if (data && typeof data === 'object') {
                 failedSkills.push({
-                    name: skillNames[skill],
-                    current: data.current,
-                    required: data.required
+                    name: skillNames[skill] || skill,
+                    current: data.current || 0,
+                    required: data.required || 0
                 });
             }
         });
@@ -539,7 +551,7 @@ class CeremonyManager {
         let masterComment = '...ワシが2年かけた味を、7日で再現しおったか。';
         if (passedSkills.length === 4) {
             masterComment = '...完璧だ。この味...ワシを超える日も近いかもしれん。';
-        } else if (details.boiling.passed && details.cutting.passed) {
+        } else if (details?.boiling?.passed && details?.cutting?.passed) {
             masterComment = '...煮込みと包丁さばき...キメラシチューの核を理解している。';
         }
 
@@ -555,12 +567,19 @@ class CeremonyManager {
      * Get failure comment based on which skills were lacking
      */
     _getFailureComment(details) {
+        // CRITICAL: Defensive programming - handle undefined details
+        if (!details || typeof details !== 'object') {
+            console.warn('CeremonyManager._getFailureComment: Invalid details, using default');
+            return '判定データが不足している。基本ができていない。';
+        }
+
         const failedSkills = [];
 
-        if (!details.boiling.passed) failedSkills.push('煮込み');
-        if (!details.cutting.passed) failedSkills.push('包丁');
-        if (!details.frying.passed) failedSkills.push('炒め');
-        if (!details.plating.passed) failedSkills.push('盛り付け');
+        // CRITICAL: Safe access with null checks
+        if (!details?.boiling?.passed) failedSkills.push('煮込み');
+        if (!details?.cutting?.passed) failedSkills.push('包丁');
+        if (!details?.frying?.passed) failedSkills.push('炒め');
+        if (!details?.analysis?.passed) failedSkills.push('食材分析');
 
         if (failedSkills.includes('煮込み')) {
             return 'この煮込み...全く火加減がなっておらん。基本ができていない。';
@@ -639,37 +658,48 @@ class CeremonyManager {
      * End retrospective and prepare for next day
      */
     _endRetrospective() {
-        const currentDay = this._gameState.get('day');
+        // CRITICAL: Error handling to ensure day advancement always happens
+        try {
+            const currentDay = this._gameState.get('day') || 1;
 
-        // Clear daily state (but keep pivotBonus - it should apply to NEXT day)
-        this._dailyFocus = null;
-        this._gameState.update({
-            dailyFocus: null,
-            dailyFocusEffect: null
-            // NOTE: pivotBonus is cleared in selectDailyFocus() after being used
-        });
+            // Clear daily state (but keep pivotBonus - it should apply to NEXT day)
+            this._dailyFocus = null;
+            this._gameState.update({
+                dailyFocus: null,
+                dailyFocusEffect: null
+                // NOTE: pivotBonus is cleared in selectDailyFocus() after being used
+            });
 
-        // Overnight stamina recovery (Power Pro style)
-        // Recover stamina at night for the next day
-        this._gameState.recoverStamina(40);
+            // Overnight stamina recovery is handled by advanceDay()
+            // (advanceDay() recovers +40 stamina, so we don't need to call recoverStamina here)
 
-        // Also replenish some ingredients overnight (daily delivery)
-        const currentIngredients = this._gameState.get('currentIngredients');
-        if (currentIngredients < 3) {
-            this._gameState.update({ currentIngredients: Math.min(5, currentIngredients + 2) });
+            // Also replenish some ingredients overnight (daily delivery)
+            const currentIngredients = this._gameState.get('currentIngredients');
+            if (currentIngredients !== undefined && currentIngredients < 3) {
+                this._gameState.update({ currentIngredients: Math.min(5, currentIngredients + 2) });
+            }
+
+            // CRITICAL: NOW advance the day counter (after retrospective is complete)
+            // SPECIFICATION COMPLIANCE: This ensures next morning's "policy selection" is shown
+            const nextDay = currentDay + 1;
+            this._gameState.advanceDay(); // This handles overnight recovery (+40) and day increment
+
+            this._eventBus.emit('ceremony:day_complete', {
+                completedDay: currentDay,
+                nextDay: nextDay
+            });
+
+            // Check for game end conditions AFTER day advances
+            this._checkGameEndConditions();
+        } catch (error) {
+            // CRITICAL: Even if there's an error, try to advance the day
+            console.error('CeremonyManager: Error in _endRetrospective:', error);
+            try {
+                this._gameState.advanceDay();
+            } catch (advanceError) {
+                console.error('CeremonyManager: Failed to advance day:', advanceError);
+            }
         }
-
-        // NOW advance the day counter (after retrospective is complete)
-        const nextDay = currentDay + 1;
-        this._gameState.advanceDay(); // This handles overnight recovery and day increment
-
-        this._eventBus.emit('ceremony:day_complete', {
-            completedDay: currentDay,
-            nextDay: nextDay
-        });
-
-        // Check for game end conditions AFTER day advances
-        this._checkGameEndConditions();
     }
 
     /**
@@ -701,153 +731,6 @@ class CeremonyManager {
                 this._eventBus.emit(GameEvents.EPISODE_COMPLETED, { episode: 1 });
             }
         }
-    }
-
-    /**
-     * Force show retry button in judgment dialogue
-     * @private
-     */
-    _forceShowRetryButton() {
-        const dialogueEl = document.getElementById('judgment-dialogue');
-        if (!dialogueEl) {
-            console.warn('CeremonyManager: judgment-dialogue element not found');
-            return;
-        }
-
-        // Check if button already exists
-        if (document.getElementById('judgment-retry-btn')) {
-            return;
-        }
-
-        // Create retry button with inline styles for visibility
-        const retryButton = document.createElement('button');
-        retryButton.id = 'judgment-retry-btn';
-        retryButton.innerHTML = '🔄 修行をやり直す（Day 1へ）';
-        
-        // Mobile-responsive styles
-        const isMobile = window.innerWidth <= 480;
-        const buttonPadding = isMobile ? '15px' : '20px';
-        const buttonFontSize = isMobile ? '1rem' : '1.3rem';
-        
-        retryButton.setAttribute('style', `
-            width: 100%;
-            max-width: 100%;
-            padding: ${buttonPadding};
-            margin-top: 30px;
-            font-size: ${buttonFontSize};
-            font-weight: 700;
-            background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
-            color: white;
-            border: 3px solid #FFF;
-            border-radius: 12px;
-            cursor: pointer;
-            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
-            transition: all 0.3s ease;
-            box-sizing: border-box;
-        `);
-
-        // Add hover effect
-        retryButton.addEventListener('mouseenter', () => {
-            retryButton.style.transform = 'translateY(-3px)';
-            retryButton.style.boxShadow = '0 8px 25px rgba(76, 175, 80, 0.8)';
-        });
-        retryButton.addEventListener('mouseleave', () => {
-            retryButton.style.transform = 'translateY(0)';
-            retryButton.style.boxShadow = '0 6px 20px rgba(76, 175, 80, 0.6)';
-        });
-
-        // Add click handler
-        retryButton.addEventListener('click', () => {
-            // Reset state
-            this._gameState.update({
-                day: 1,
-                stamina: 100,
-                currentPhase: 'day',
-                dayActionsRemaining: GameConfig.phases.DAY.actionsAllowed,
-                nightActionsRemaining: GameConfig.phases.NIGHT.actionsAllowed,
-                dishProgress: 0,
-                technicalDebt: GameConfig.techDebt.initial,
-                growth: 0,
-                oldManMood: 70,
-                condition: GameConfig.condition.initial,
-                todayActions: [],
-                spiceCrisisActive: false,
-                judgmentTriggered: false
-            });
-
-            // Reload page
-            location.reload();
-        });
-
-        // Append button to dialogue container
-        dialogueEl.appendChild(retryButton);
-    }
-
-    /**
-     * Show reset button for game over
-     * @private
-     */
-    _showResetButton() {
-        // Check if button already exists
-        if (document.getElementById('gameover-reset-btn')) {
-            return;
-        }
-
-        // Create reset button with inline styles (mobile-responsive)
-        const resetButton = document.createElement('button');
-        resetButton.id = 'gameover-reset-btn';
-        resetButton.textContent = '最初からやり直す（RESET）';
-        
-        // Mobile-responsive styles
-        const isMobile = window.innerWidth <= 480;
-        const buttonPadding = isMobile ? '15px 30px' : '15px 40px';
-        const buttonFontSize = isMobile ? '1rem' : '1.2rem';
-        const buttonWidth = isMobile ? '90%' : 'auto';
-        const buttonMaxWidth = isMobile ? '90%' : 'none';
-        
-        resetButton.setAttribute('style', `
-            position: fixed;
-            bottom: 20%;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10000;
-            padding: ${buttonPadding};
-            width: ${buttonWidth};
-            max-width: ${buttonMaxWidth};
-            background: #333;
-            color: #fff;
-            border: 2px solid #fff;
-            font-weight: bold;
-            font-size: ${buttonFontSize};
-            cursor: pointer;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-            transition: all 0.3s ease;
-            box-sizing: border-box;
-        `);
-
-        // Add hover effect
-        resetButton.addEventListener('mouseenter', () => {
-            resetButton.style.background = '#555';
-            resetButton.style.transform = 'translateX(-50%) translateY(-3px)';
-            resetButton.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.7)';
-        });
-        resetButton.addEventListener('mouseleave', () => {
-            resetButton.style.background = '#333';
-            resetButton.style.transform = 'translateX(-50%) translateY(0)';
-            resetButton.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.5)';
-        });
-
-        // Add click handler - complete reset
-        resetButton.addEventListener('click', () => {
-            // Clear all localStorage
-            localStorage.clear();
-            // Reload page for complete reset
-            location.reload();
-        });
-
-        // Append to body
-        document.body.appendChild(resetButton);
     }
 
     /**
@@ -887,7 +770,6 @@ class CeremonyManager {
         this._dailyFocus = null;
         this._dayStartState = null;
         this._isTransitioningToNight = false;
-        this._spiceCrisisShown = false;
     }
 
     // ===== PUBLIC GETTERS =====

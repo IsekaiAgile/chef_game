@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>ネコノヒゲ：アジャイル厨房</title>
+    <title>ネコノヒゲ：厨房サクセス</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -183,44 +183,7 @@
             </div>
         </div>
 
-        <!-- LAYER 4: Floating Cycle Display (Combo Indicator) -->
-        <div class="pawa-cycle-float" id="combo-display">
-            <div class="cycle-header">
-                <span class="cycle-icon">&#x1F504;</span>
-                <span class="cycle-title">アジャイルサイクル</span>
-            </div>
-            <div class="cycle-progress">
-                <div class="cycle-step" id="cycle-step-1" data-step="1">
-                    <span class="step-icon">&#x1F373;</span>
-                    <span class="step-label">調理</span>
-                </div>
-                <div class="cycle-arrow">→</div>
-                <div class="cycle-step" id="cycle-step-2" data-step="2">
-                    <span class="step-icon">&#x1F527;</span>
-                    <span class="step-label">分析</span>
-                </div>
-                <div class="cycle-arrow">→</div>
-                <div class="cycle-step" id="cycle-step-3" data-step="3">
-                    <span class="step-icon">&#x1F465;</span>
-                    <span class="step-label">対話</span>
-                </div>
-            </div>
-            <div class="cycle-counter" id="cycle-counter">
-                <span class="counter-text">進捗: </span>
-                <span class="counter-value" id="cycle-count">0</span>
-                <span class="counter-text">/3</span>
-            </div>
-            <div class="cycle-hint" id="cycle-hint">3種類のアクションで完璧なサイクル！</div>
-        </div>
-
-        <!-- PERFECT AGILE Celebration Overlay -->
-        <div id="perfect-agile-overlay" class="perfect-overlay hidden">
-            <div class="perfect-content">
-                <div class="perfect-star">⭐</div>
-                <div class="perfect-text">PERFECT AGILE!</div>
-                <div class="perfect-subtext">完璧なサイクル達成！</div>
-            </div>
-        </div>
+        <!-- LAYER 4: Removed -->
 
         <!-- LAYER 5: Floating Balance Bar -->
         <div class="pawa-balance-float">
@@ -293,7 +256,7 @@
                 <h2>革新の第一歩</h2>
                 <div class="clear-icon">&#x1F52A;</div>
                 <p class="clear-text">老店主から古い包丁を受け取った！</p>
-                <p class="clear-quote">「ワシは地図ばかり見て、客の顔を見ることを忘れておった。お前の『アジャイル』…それはワシが料理を始めた頃の心を思い出させてくれた。」</p>
+                <p class="clear-quote">「ワシは地図ばかり見て、客の顔を見ることを忘れておった。お前の努力…それはワシが料理を始めた頃の心を思い出させてくれた。」</p>
                 <div class="clear-reward">
                     <span class="reward-label">獲得アイテム</span>
                     <span class="reward-item">&#x1F52A; 老店主の包丁</span>
@@ -306,7 +269,7 @@
             <div class="overlay-content victory-content">
                 <h2>クリア！</h2>
                 <p class="victory-text">あなたの継続的な実験が厨房を変革した！</p>
-                <p class="victory-quote">「お前がこの食堂を救ったプロセス…それがアジャイルだ！」</p>
+                <p class="victory-quote">「お前がこの食堂を救った努力を認める！」</p>
                 <button class="pawa-btn-primary" data-restart>もう一度遊ぶ</button>
             </div>
         </div>
@@ -320,13 +283,7 @@
             </div>
         </div>
 
-        <div id="agile-tip-modal" class="hidden overlay-screen">
-            <div class="overlay-content tip-content">
-                <h2>今日のアジャイル格言</h2>
-                <p id="agile-tip-text"></p>
-                <button class="pawa-btn-primary" id="agile-tip-close">なるほど！</button>
-            </div>
-        </div>
+        <!-- Agile tip modal removed -->
 
         <!-- ===== VN DIALOGUE SYSTEM ===== -->
         <div id="vn-overlay" class="hidden">
@@ -410,7 +367,7 @@
                         <span class="choice-icon">&#x1F4A1;</span>
                         <span class="choice-text">
                             <span class="choice-label">「実は…イテレーティブなアプローチを…」</span>
-                            <span class="choice-effect">&#x25B6; 店主は怒るが、アジャイル成長 UP</span>
+                            <span class="choice-effect">&#x25B6; 店主は怒るが、スキル成長 UP</span>
                         </span>
                     </button>
                 </div>
@@ -428,7 +385,7 @@
             </div>
         </div>
 
-        <!-- ===== AGILE CEREMONY OVERLAYS ===== -->
+        <!-- ===== CEREMONY OVERLAYS ===== -->
 
         <!-- Phase Transition Telop -->
         <div id="phase-telop" class="phase-telop hidden">
@@ -449,11 +406,6 @@
                         <span class="badge-text">DAILY STAND-UP</span>
                     </div>
                     <div class="ceremony-day">DAY <span id="standup-day">1</span> / <span id="standup-max-day">7</span></div>
-                </div>
-                <!-- Crisis Indicator (shown during Spice Crisis) -->
-                <div id="crisis-indicator" class="crisis-indicator hidden">
-                    <span class="crisis-icon">&#x26A0;</span>
-                    <span class="crisis-label">スパイス危機中！</span>
                 </div>
 
                 <div class="ceremony-dialogue" id="standup-dialogue">
@@ -558,26 +510,7 @@
             <span class="remaining-count" id="remaining-count">3</span>
         </div>
 
-        <!-- ===== EPISODE 1: SPICE CRISIS OVERLAY ===== -->
-        <div id="spice-crisis-overlay" class="hidden ceremony-overlay crisis-overlay">
-            <div class="ceremony-bg crisis-bg"></div>
-            <div class="ceremony-content">
-                <div class="crisis-header">
-                    <div class="crisis-badge">
-                        <span class="crisis-icon-large">&#x26A0;</span>
-                        <span id="crisis-title">スパイス危機発生！</span>
-                    </div>
-                </div>
-                <div class="crisis-body">
-                    <p id="crisis-message" class="crisis-message">スパイスの配達が遅れている！店の在庫が空っぽだ！</p>
-                    <div id="crisis-effect" class="crisis-effect">Day 3-4: 調理の成功率-20%、実験の成功率+20%</div>
-                    <div id="crisis-dialogue" class="crisis-dialogue">
-                        <!-- Dialogue will be inserted here -->
-                    </div>
-                </div>
-                <button class="pawa-btn-primary" id="crisis-continue">危機を乗り越える！</button>
-            </div>
-        </div>
+        <!-- ===== SPICE CRISIS OVERLAY REMOVED ===== -->
 
         <!-- ===== EPISODE 1: DAY 7 JUDGMENT OVERLAY ===== -->
         <div id="judgment-overlay" class="hidden ceremony-overlay judgment-overlay">

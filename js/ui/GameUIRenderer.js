@@ -75,7 +75,6 @@ class GameUIRenderer {
             'skill-boiling-level', 'skill-boiling-grade', 'skill-boiling-exp',
             'skill-frying-level', 'skill-frying-grade', 'skill-frying-exp',
             'skill-plating-level', 'skill-plating-grade', 'skill-plating-exp',
-            'cycle-count', 'cycle-hint',
             'result', 'message', 'game-container', 'floating-text-container',
             'condition-icon', 'condition-text', 'condition-indicator', 'condition-value'
         ];
@@ -122,10 +121,19 @@ class GameUIRenderer {
         this._eventBus.on(GameEvents.GAME_STATE_CHANGED, this._onStateChanged.bind(this));
         this._eventBus.on(GameEvents.UI_UPDATE_REQUESTED, this._onUpdateRequested.bind(this));
         this._eventBus.on(GameEvents.ACTION_EXECUTED, this._onActionExecuted.bind(this));
+        
+        // CRITICAL: Listen to action:consumed event to update UI immediately
+        // This ensures buttons remain reactive after remainingActions changes
+        this._eventBus.on('action:consumed', (data) => {
+            console.log(`GameUIRenderer: Action consumed, remaining: ${data.remaining}, phase: ${data.phase}`);
+            // The state update is already emitted by GameState.update() in consumeAction()
+            // _onStateChanged will be called automatically, which triggers _renderAll()
+            // No additional action needed here
+        });
         this._eventBus.on(GameEvents.GAME_OVER, this._onGameOver.bind(this));
         this._eventBus.on(GameEvents.GAME_VICTORY, this._onVictory.bind(this));
         this._eventBus.on(GameEvents.EPISODE_COMPLETED, this._onEpisodeCompleted.bind(this));
-        this._eventBus.on(GameEvents.PERFECT_CYCLE, this._onPerfectCycle.bind(this));
+        // Removed: PERFECT_CYCLE event listener
         this._eventBus.on('action:critical_success', this._onCriticalSuccess.bind(this));
         this._eventBus.on('skill:level_up', this._onSkillLevelUp.bind(this));
         this._eventBus.on('ceremony:phase_changed', this._onPhaseChanged.bind(this));
@@ -156,6 +164,15 @@ class GameUIRenderer {
     _onActionExecuted(data) {
         this._triggerFujiBounce();
         this._renderResult(data.message);
+        
+        // CRITICAL: Update UI immediately after action to ensure buttons remain reactive
+        // This prevents the game from appearing "frozen" after an action
+        const currentState = data.state || this._gameState?.getState();
+        if (currentState) {
+            // Force re-render action buttons to reflect new remainingActions
+            this._renderActionButtons(currentState);
+            this._updateActionButtonsForPhase(currentState);
+        }
     }
 
     _onGameOver(data) {
@@ -174,7 +191,7 @@ class GameUIRenderer {
         if (commandMenu) commandMenu.style.display = 'none';
         if (endingEl) endingEl.classList.remove('hidden');
         if (messageEl) {
-            messageEl.textContent = '老店主がついにアジャイルを認めた！';
+            messageEl.textContent = '老店主がついに成長を認めた！';
         }
     }
 
@@ -191,31 +208,7 @@ class GameUIRenderer {
         }
     }
 
-    _onPerfectCycle(data) {
-        const gameContainer = this._getElement('game-container');
-        if (gameContainer) {
-            gameContainer.classList.add('screen-shake');
-            setTimeout(() => gameContainer.classList.remove('screen-shake'),
-                       GameConfig.ui.screenShakeDuration + 100);
-        }
-
-        const overlay = document.getElementById('perfect-agile-overlay');
-        if (overlay) {
-            overlay.classList.remove('hidden');
-            setTimeout(() => overlay.classList.add('hidden'),
-                       GameConfig.ui.perfectOverlayDuration);
-        }
-
-        const steps = document.querySelectorAll('.cycle-step');
-        steps.forEach(step => {
-            step.classList.add('perfect');
-            setTimeout(() => step.classList.remove('perfect'), 2000);
-        });
-
-        this._eventBus.emit('mina:cheer_perfect_cycle', {
-            message: 'すごい、フジくん！完璧なアジャイルサイクルだよ！'
-        });
-    }
+    // Removed: _onPerfectCycle method deleted
 
     _onCriticalSuccess(data) {
         const gameContainer = this._getElement('game-container');
@@ -330,13 +323,8 @@ class GameUIRenderer {
         const el = document.createElement('div');
         el.className = `floating-text ${type}`;
         el.textContent = text;
-        
-        // Clamp x/y to viewport bounds for mobile
-        const clampedX = Math.max(10, Math.min(window.innerWidth - 50, x));
-        const clampedY = Math.max(10, Math.min(window.innerHeight - 50, y));
-        
-        el.style.left = `${clampedX}px`;
-        el.style.top = `${clampedY}px`;
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
 
         container.appendChild(el);
 
@@ -350,17 +338,62 @@ class GameUIRenderer {
     // ===== Render Methods (with dirty-checking) =====
 
     _renderAll(state) {
+        // Log current state for debugging
+        console.log('GameUIRenderer: Rendering all UI, state:', {
+            day: state.day,
+            phase: state.currentPhase,
+            stamina: state.stamina,
+            dayActionsRemaining: state.dayActionsRemaining,
+            nightActionsRemaining: state.nightActionsRemaining
+        });
+        
+        // CRITICAL: Clear any leftover DOM elements from previous day
+        // This prevents messages and UI elements from Day N-1 from persisting into Day N
+        this._clearPreviousDayUI(state);
+        
         this._renderScoreboard(state);
-        this._renderMeters(state);
-        this._renderSecondaryStats(state);
-        this._renderBalanceGauge(state);
-        this._renderCycleDisplay(state);
         this._renderChallenge(state);
         this._renderSkillPanel(state);
         this._renderStaminaBar(state);
         this._renderActionButtons(state);
         this._renderCondition(state);
+        // CRITICAL: Always update action buttons based on current phase
+        // This ensures buttons are correctly displayed for ALL days (Day 1-7)
         this._updateActionButtonsForPhase(state);
+    }
+    
+    /**
+     * Clear UI elements from previous day to prevent DOM pollution
+     * @private
+     */
+    _clearPreviousDayUI(state) {
+        // Clear result message
+        const resultEl = this._getElement('result');
+        if (resultEl) {
+            resultEl.innerHTML = '';
+        }
+        
+        // Clear action remaining counters if day changed
+        const actionsUsedEl = document.getElementById('actions-used');
+        if (actionsUsedEl && state.currentPhase === 'day') {
+            // Day phase started, reset counter
+            if (state.dayActionsRemaining === 3) {
+                actionsUsedEl.textContent = '0';
+            }
+        }
+        
+        // Clear any floating text that might be lingering
+        const floatingTextContainer = document.getElementById('floating-text-container');
+        if (floatingTextContainer) {
+            // Keep only recent floating texts (last 5)
+            const floatingTexts = floatingTextContainer.querySelectorAll('.floating-text');
+            if (floatingTexts.length > 5) {
+                // Remove oldest ones
+                for (let i = 0; i < floatingTexts.length - 5; i++) {
+                    floatingTexts[i].remove();
+                }
+            }
+        }
     }
 
     _renderScoreboard(state) {
@@ -390,135 +423,7 @@ class GameUIRenderer {
         });
     }
 
-    _renderMeters(state) {
-        // Growth gauge
-        this._updateIfChanged('growth', state.growth, (val) => {
-            const valEl = this._getElement('growth-val');
-            const meterEl = this._getElement('growth-meter');
-
-            if (valEl) valEl.textContent = val ?? 0;
-            if (meterEl) {
-                const maxGrowth = this._config.maxGrowth ?? GameConfig.growth?.max ?? 50;
-                meterEl.style.width = `${((val ?? 0) / maxGrowth) * 100}%`;
-            }
-        });
-
-        // Near-goal class
-        const growthGaugeBlock = document.querySelector('.growth-gauge-block');
-        if (growthGaugeBlock) {
-            const nearGoal = state.growth >= 40;
-            if (nearGoal !== this._cachedValues.nearGoal) {
-                this._cachedValues.nearGoal = nearGoal;
-                growthGaugeBlock.classList.toggle('near-goal', nearGoal);
-            }
-        }
-
-        // Reputation gauge
-        this._updateIfChanged('oldManMood', state.oldManMood, (val) => {
-            const valEl = this._getElement('mood-val');
-            const meterEl = this._getElement('reputation-meter');
-
-            if (valEl) valEl.textContent = val;
-            if (meterEl) meterEl.style.width = `${val}%`;
-        });
-
-        // Stagnation display
-        this._updateIfChanged('stagnation', state.stagnation, (val) => {
-            const valEl = this._getElement('stagnation-val');
-            const warningEl = this._getElement('stagnation-warning');
-
-            if (valEl) valEl.textContent = val ?? 0;
-            if (warningEl) {
-                const threshold = GameConfig.stagnation?.warningThreshold ?? 60;
-                warningEl.style.display = (val ?? 0) >= threshold ? 'flex' : 'none';
-            }
-        });
-    }
-
-    _renderSecondaryStats(state) {
-        this._updateIfChanged('ingredientQuality', state.ingredientQuality, (val) => {
-            const el = this._getElement('quality-val');
-            if (el) el.textContent = val;
-        });
-
-        this._updateIfChanged('currentIngredients', state.currentIngredients, (val) => {
-            const el = this._getElement('ingredients-val');
-            if (el) el.textContent = val;
-        });
-
-        this._updateIfChanged('technicalDebt', state.technicalDebt, (val) => {
-            const el = this._getElement('debt-val');
-            if (el) el.textContent = val;
-        });
-    }
-
-    _renderBalanceGauge(state) {
-        this._updateIfChanged('traditionScore', state.traditionScore, (val) => {
-            const indicator = this._getElement('balance-indicator');
-            const status = this._getElement('balance-status');
-
-            if (indicator) {
-                const position = 100 - val;
-                indicator.style.left = `${position}%`;
-            }
-
-            if (status) {
-                if (val >= 60) {
-                    status.textContent = '伝統寄り：革新が必要！';
-                    status.style.color = 'var(--sim-purple)';
-                } else if (val <= 40) {
-                    status.textContent = '革新寄り：伝統を尊重せよ！';
-                    status.style.color = 'var(--sim-cyan)';
-                } else {
-                    status.textContent = '調和達成！バランス良好！';
-                    status.style.color = 'var(--sim-yellow)';
-                }
-            }
-        });
-    }
-
-    _renderCycleDisplay(state) {
-        const { actionHistory, perfectCycleCount } = state;
-        const historyKey = actionHistory.join(',');
-
-        this._updateIfChanged('actionHistory', historyKey, () => {
-            const isPerfect = this._isPerfectCycle(actionHistory);
-            const missingActions = this._getMissingActions(actionHistory);
-            const lastThree = actionHistory.slice(-3);
-            const completedActions = new Set(lastThree);
-            const uniqueCount = completedActions.size;
-
-            // Update step indicators
-            for (let i = 1; i <= 3; i++) {
-                const stepEl = document.getElementById(`cycle-step-${i}`);
-                if (stepEl) {
-                    stepEl.classList.remove('completed', 'perfect');
-                    if (completedActions.has(i)) {
-                        stepEl.classList.add('completed');
-                        if (isPerfect) stepEl.classList.add('perfect');
-                    }
-                }
-            }
-
-            // Update counter
-            const cycleCountEl = this._getElement('cycle-count');
-            if (cycleCountEl) cycleCountEl.textContent = uniqueCount;
-
-            // Update hint
-            const hintEl = this._getElement('cycle-hint');
-            if (hintEl) {
-                if (isPerfect) {
-                    hintEl.innerHTML = `<span class="hint-perfect">パーフェクト！${perfectCycleCount > 1 ? ` ${perfectCycleCount}連続！` : ''}</span>`;
-                } else if (uniqueCount >= 2 && missingActions.length === 1) {
-                    hintEl.innerHTML = `次は「<strong>${this._config.actionNames[missingActions[0]]}</strong>」でパーフェクト！`;
-                } else if (uniqueCount === 1) {
-                    hintEl.textContent = 'あと2種類のアクションでサイクル完成！';
-                } else {
-                    hintEl.textContent = '3種類のアクションで完璧なサイクル！';
-                }
-            }
-        });
-    }
+    // Removed: _renderMeters, _renderSecondaryStats, _renderBalanceGauge, _renderCycleDisplay methods deleted
 
     _renderChallenge(state) {
         // Challenge changes less frequently, so dirty-check with composite key
@@ -653,37 +558,197 @@ class GameUIRenderer {
      * @private
      */
     _renderActionButtons(state) {
-        const stamina = state.stamina ?? GameConfig.stamina?.initial ?? 100;
-        const costs = GameConfig.actions?.costs ?? { 1: 10, 2: 20, 3: 30, 4: 0 };
+        // CRITICAL: Safe access with null checks to prevent undefined errors
+        const stamina = state?.stamina ?? GameConfig.stamina.initial;
+        const policy = state?.currentPolicy || null;
+        const phase = state?.currentPhase || 'day';
+        
+        // CRITICAL: Build costs object from GameConfig to prevent undefined access
+        // GameConfig.actions.costs does not exist, so we build it from dayActions/nightActions
+        const getActionCost = (actionId, phase) => {
+            if (phase === 'day') {
+                const dayActionMap = {
+                    1: GameConfig.dayActions?.cleaning?.staminaCost ?? 10,  // 掃除・皿洗い
+                    2: GameConfig.dayActions?.chopping?.staminaCost ?? 20,  // 下準備
+                    3: GameConfig.dayActions?.heatControl?.staminaCost ?? 30 // 火の番
+                };
+                return dayActionMap[actionId] ?? 10;
+            } else {
+                const nightActionMap = {
+                    1: GameConfig.nightActions?.trialCooking?.staminaCost ?? 25, // シチュー試作
+                    2: GameConfig.nightActions?.study?.staminaCost ?? 15         // 研究
+                };
+                return nightActionMap[actionId] ?? 15;
+            }
+        };
+        
+        const costs = {
+            1: getActionCost(1, phase),
+            2: getActionCost(2, phase),
+            3: getActionCost(3, phase),
+            4: 0 // Rest action costs nothing
+        };
+        
+        // SPECIFICATION COMPLIANCE: Clear container completely before re-rendering
+        // This prevents "dead" event listeners from interfering with button clicks
+        const actionsContainer = document.getElementById('actions');
+        if (!actionsContainer) {
+            console.error('GameUIRenderer: actions container not found');
+            return;
+        }
+        
+        // CRITICAL: Clear all existing buttons to prevent event listener duplication
+        // This follows the specification: "innerHTML = '' で全消去してから再描画する"
+        actionsContainer.innerHTML = '';
+        
+        // Calculate policy multipliers
+        const getStaminaMultiplier = (policy) => {
+            if (!policy) return 1.0;
+            switch (policy) {
+                case 'quality': return 1.2;
+                case 'speed': return 0.5;
+                case 'challenge': return 1.0; // 成功判定は動的
+                default: return 1.0;
+            }
+        };
+        
+        const staminaMultiplier = getStaminaMultiplier(policy);
+        const getPolicyLabel = (policy, baseCost) => {
+            if (!policy) return '';
+            const adjustedCost = Math.floor(baseCost * staminaMultiplier);
+            switch (policy) {
+                case 'quality':
+                    return ` ※品質重視 (体力${adjustedCost})`;
+                case 'speed':
+                    return ` ※スピード重視 (体力${adjustedCost})`;
+                case 'challenge':
+                    return ` ※新しい挑戦 (成功時2倍/失敗時-30)`;
+                default:
+                    return '';
+            }
+        };
 
-        // Only update if stamina changed
-        this._updateIfChanged('actionButtons', stamina, () => {
-            for (let actionId = 1; actionId <= 4; actionId++) {
-                const btn = document.querySelector(`[data-action="${actionId}"]`);
-                if (!btn) continue;
-
-                const cost = costs[actionId] ?? 0;
-                const canAfford = stamina >= cost || actionId === 4;
-
-                btn.classList.toggle('disabled', !canAfford);
-                btn.disabled = !canAfford;
-
-                const costEl = btn.querySelector('.cmd-cost');
-                if (costEl) {
-                    const restRecovery = GameConfig.stamina?.restRecovery ?? 40;
-                    costEl.textContent = actionId === 4
-                        ? `+${restRecovery}回復`
-                        : `体力${cost}`;
+        // Re-create buttons based on current phase
+        const buttons = [];
+        
+        if (phase === 'day') {
+            // Day actions: 掃除・皿洗い, 下準備, 火の番, 休む
+            const dayActionConfigs = [
+                { id: 1, name: 'cleaning', icon: '&#x1F37D;', label: '掃除・皿洗い', cost: costs[1], class: 'cmd-orange', phase: 'day' },
+                { id: 2, name: 'chopping', icon: '&#x1F52A;', label: '下準備', cost: costs[2], class: 'cmd-blue', phase: 'day' },
+                { id: 3, name: 'heatControl', icon: '&#x1F525;', label: '火の番', cost: costs[3], class: 'cmd-green', phase: 'day' },
+                { id: 4, name: 'rest', icon: '&#x1F4A4;', label: '休む', cost: 0, class: 'cmd-pink', phase: 'day' }
+            ];
+            
+            dayActionConfigs.forEach(config => {
+                let adjustedCost = config.cost;
+                
+                // Apply policy multiplier (except for rest)
+                if (config.id !== 4 && policy) {
+                    if (policy === 'challenge') {
+                        adjustedCost = 30; // Challenge: show max cost (failure case)
+                    } else {
+                        adjustedCost = Math.floor(config.cost * staminaMultiplier);
+                    }
                 }
-            }
-
-            // Highlight rest button if stamina is low
-            const restBtn = document.getElementById('rest-btn');
-            if (restBtn) {
-                const lowThreshold = GameConfig.stamina?.lowThreshold ?? 25;
-                restBtn.classList.toggle('recommended', stamina <= lowThreshold);
-            }
+                
+                const canAfford = stamina >= adjustedCost || config.id === 4;
+                const policyLabel = config.id !== 4 ? getPolicyLabel(policy, config.cost) : '';
+                
+                const btn = document.createElement('button');
+                btn.className = `pawa-cmd-btn ${config.class} day-action`;
+                btn.setAttribute('data-action', config.id);
+                btn.setAttribute('data-action-name', config.name);
+                btn.disabled = !canAfford;
+                if (!canAfford) btn.classList.add('disabled');
+                
+                btn.innerHTML = `
+                    <span class="cmd-icon">${config.icon}</span>
+                    <span class="cmd-label">${config.label}</span>
+                    <span class="cmd-cost">${config.id === 4 ? `+${GameConfig.stamina.restRecovery}回復` : `体力${adjustedCost}${policyLabel}`}</span>
+                `;
+                
+                // CRITICAL: Ensure buttons are clickable
+                btn.style.pointerEvents = canAfford ? 'auto' : 'none';
+                
+                buttons.push(btn);
+            });
+        } else if (phase === 'night') {
+            // Night actions: シチュー試作, 研究, 休息
+            const nightActionConfigs = [
+                { id: 1, name: 'trialCooking', icon: '&#x1F372;', label: 'シチュー試作', cost: costs[1] || 25, class: 'cmd-purple', phase: 'night' },
+                { id: 2, name: 'study', icon: '&#x1F4D6;', label: '研究', cost: costs[2] || 15, class: 'cmd-cyan', phase: 'night' },
+                { id: 3, name: 'rest', icon: '&#x1F4A4;', label: '休息', cost: 0, class: 'cmd-pink', phase: 'night' }
+            ];
+            
+            nightActionConfigs.forEach(config => {
+                const canAfford = stamina >= config.cost || config.id === 3;
+                
+                const btn = document.createElement('button');
+                btn.className = `pawa-cmd-btn ${config.class} night-action`;
+                btn.setAttribute('data-action', config.id);
+                btn.setAttribute('data-action-name', config.name);
+                btn.disabled = !canAfford;
+                if (!canAfford) {
+                    btn.classList.add('disabled');
+                    btn.style.pointerEvents = 'none';
+                    btn.style.opacity = '0.5';
+                } else {
+                    btn.style.pointerEvents = 'auto';
+                    btn.style.opacity = '1';
+                }
+                
+                btn.innerHTML = `
+                    <span class="cmd-icon">${config.icon}</span>
+                    <span class="cmd-label">${config.label}</span>
+                    <span class="cmd-cost">${config.id === 3 ? `+${GameConfig.stamina.restRecovery}回復` : `体力${config.cost}`}</span>
+                `;
+                
+                btn.style.zIndex = '10000'; // Ensure night buttons are on top
+                
+                buttons.push(btn);
+            });
+        }
+        
+        // CRITICAL: Attach event listeners directly to each button
+        // This ensures buttons are reactive immediately after re-rendering
+        // SPECIFICATION COMPLIANCE: "ボタンを描画するたびに、必ずイベントリスナーを登録し直す"
+        buttons.forEach(btn => {
+            // Attach click event listener that emits action execution event
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Don't execute if button is disabled
+                if (btn.disabled || btn.classList.contains('disabled')) {
+                    console.log('GameUIRenderer: Button disabled, ignoring click');
+                    return;
+                }
+                
+                const actionId = parseInt(btn.dataset.action, 10);
+                const actionName = btn.dataset.actionName;
+                
+                console.log(`GameUIRenderer: Button clicked - actionId: ${actionId}, actionName: ${actionName}`);
+                
+                // CRITICAL: Emit action execution event via EventBus
+                // This triggers GameApp.executeAction() -> KitchenEngine.executeAction() -> GameState.handleAction()
+                this._eventBus.emit('ui:action_button_clicked', {
+                    actionId,
+                    actionName,
+                    phase
+                });
+            });
+            
+            actionsContainer.appendChild(btn);
         });
+        
+        // Emit event to notify that buttons have been re-rendered
+        this._eventBus.emit('ui:action_buttons_rendered', {
+            phase,
+            buttons
+        });
+        
+        console.log(`GameUIRenderer: Re-rendered ${buttons.length} action buttons for phase: ${phase} with event listeners attached`);
     }
 
     _renderResult(message) {
@@ -695,16 +760,7 @@ class GameUIRenderer {
 
     // ===== Helper Methods =====
 
-    _isPerfectCycle(history) {
-        if (history.length < 3) return false;
-        const lastThree = history.slice(-3);
-        return new Set(lastThree).size === 3;
-    }
-
-    _getMissingActions(history) {
-        const lastTwo = history.slice(-2);
-        return [1, 2, 3].filter(a => !lastTwo.includes(a));
-    }
+    // Removed: _isPerfectCycle, _getMissingActions methods deleted
 
     _triggerFujiBounce() {
         const fujiImage = document.getElementById('fuji-image');
@@ -732,7 +788,6 @@ class GameUIRenderer {
     showGameUI() {
         const panels = [
             'pawa-top-hud', 'pawa-hero-layer', 'pawa-command-menu',
-            'pawa-cycle-float', 'pawa-balance-float', 'pawa-bottom-hud',
             'pawa-dialogue-box', 'pawa-result-panel', 'pawa-skill-panel'
         ];
 
@@ -754,7 +809,6 @@ class GameUIRenderer {
     hideGameUI() {
         const panels = [
             'pawa-top-hud', 'pawa-hero-layer', 'pawa-command-menu',
-            'pawa-cycle-float', 'pawa-balance-float', 'pawa-bottom-hud',
             'pawa-dialogue-box', 'pawa-result-panel', 'pawa-skill-panel'
         ];
 
@@ -824,22 +878,51 @@ class GameUIRenderer {
      */
     _updateActionButtonsForPhase(state) {
         const phase = state.currentPhase || 'day';
+        const day = state.day || 1;
+        
+        console.log(`GameUIRenderer: Updating action buttons for phase: ${phase}, day: ${day}`);
+        
         const dayActions = document.querySelectorAll('.day-action');
         const nightActions = document.querySelectorAll('.night-action');
+        
+        console.log(`GameUIRenderer: Found ${dayActions.length} day actions, ${nightActions.length} night actions`);
 
         if (phase === 'day') {
-            dayActions.forEach(btn => btn.classList.remove('hidden'));
-            nightActions.forEach(btn => btn.classList.add('hidden'));
+            // Day phase: Show day actions, hide night actions
+            console.log(`GameUIRenderer: Day ${day} - Showing day action buttons`);
+            dayActions.forEach(btn => {
+                btn.classList.remove('hidden');
+                btn.style.display = 'flex';
+                btn.style.visibility = 'visible';
+                btn.style.pointerEvents = 'auto';
+            });
+            nightActions.forEach(btn => {
+                btn.classList.add('hidden');
+                btn.style.display = 'none';
+                btn.style.pointerEvents = 'none';
+            });
         } else if (phase === 'night') {
-            dayActions.forEach(btn => btn.classList.add('hidden'));
-            nightActions.forEach(btn => btn.classList.remove('hidden'));
-        }
-        
-        // Mobile: Ensure command menu is responsive
-        const commandMenu = document.querySelector('.pawa-command-menu');
-        if (commandMenu && window.innerWidth <= 480) {
-            commandMenu.style.width = '95%';
-            commandMenu.style.maxWidth = '95%';
+            console.log('GameUIRenderer: Night buttons rendered - Waiting for input');
+            dayActions.forEach(btn => {
+                btn.classList.add('hidden');
+                btn.style.display = 'none';
+                btn.style.pointerEvents = 'none';
+            });
+            nightActions.forEach(btn => {
+                btn.classList.remove('hidden');
+                // Force night buttons to be on top and clickable (highest z-index)
+                btn.style.zIndex = '10000';
+                btn.style.pointerEvents = 'auto';
+                btn.style.position = 'relative';
+                btn.style.display = 'flex';
+                btn.style.visibility = 'visible';
+                btn.disabled = false;
+                btn.style.cursor = 'pointer';
+                btn.style.opacity = '1';
+                // Ensure button is not behind any transparent layers
+                btn.style.position = 'relative';
+                console.log(`GameUIRenderer: Showing night action button:`, btn.dataset.action, '- Button is clickable and waiting for input (z-index: 10000)');
+            });
         }
     }
 
@@ -848,13 +931,28 @@ class GameUIRenderer {
      * @private
      */
     _onPhaseChanged(data) {
-        const state = { currentPhase: data.phase };
+        const phase = data.phase || data.to || 'day';
+        const day = data.day || this._prevState?.day || 1;
+        
+        console.log(`GameUIRenderer: Phase changed event received: phase=${phase}, day=${day}`);
+        
+        // Get full state from current state if available
+        const state = { 
+            currentPhase: phase,
+            day: day
+        };
+        
+        // Always update action buttons when phase changes
+        // This ensures buttons are correctly displayed for ALL days (Day 1-7)
         this._updateActionButtonsForPhase(state);
         
         // Update action counter max
-        const maxActions = data.phase === 'night' ? 1 : 3;
+        const maxActions = phase === 'night' ? 1 : 3;
         const maxActionsEl = document.getElementById('actions-max');
-        if (maxActionsEl) maxActionsEl.textContent = maxActions;
+        if (maxActionsEl) {
+            maxActionsEl.textContent = maxActions;
+            console.log(`GameUIRenderer: Updated actions-max to ${maxActions}`);
+        }
     }
 
     /**

@@ -101,83 +101,120 @@ class KitchenEngine {
      * @returns {Object} Action result
      */
     executeAction(actionId, options = {}) {
-        const state = this._gameState.getState();
-        const phase = state.currentPhase;
+        // CRITICAL: Error handling with try-finally to ensure state consistency
+        try {
+            const state = this._gameState.getState();
+            const phase = state?.currentPhase || 'day';
 
-        // Check game over
-        if (this._gameState.isGameOver()) {
-            return { success: false, message: 'ゲームオーバー' };
-        }
-
-        // Check actions remaining
-        if (this._gameState.getActionsRemaining() <= 0) {
-            return { success: false, message: 'アクションがありません' };
-        }
-
-        // Map button IDs to action names
-        let actionName = null;
-        if (typeof actionId === 'number') {
-            // Legacy button IDs (1-4) -> map to action names
-            if (phase === 'day') {
-                const dayActionMap = {
-                    1: 'cleaning',      // 皿洗い -> 掃除・皿洗い
-                    2: 'chopping',      // 下準備
-                    3: 'heatControl'    // 火の番
-                };
-                actionName = dayActionMap[actionId];
-            } else if (phase === 'night') {
-                const nightActionMap = {
-                    1: 'trialCooking',  // シチュー試作
-                    2: 'study',         // 研究
-                    3: 'rest'           // 休息
-                };
-                actionName = nightActionMap[actionId];
-            }
-        } else {
-            // Already an action name string
-            actionName = actionId;
-        }
-
-        if (!actionName) {
-            console.error(`KitchenEngine: Unknown action ID "${actionId}" for phase "${phase}"`);
-            return { success: false, message: '不明なアクション' };
-        }
-
-        // Get appropriate handler
-        const handlers = phase === 'day' ? this._dayActionHandlers : this._nightActionHandlers;
-        const handler = handlers.get(actionName);
-
-        if (!handler) {
-            console.error(`KitchenEngine: Unknown action "${actionName}" for phase "${phase}"`);
-            return { success: false, message: '不明なアクション' };
-        }
-
-        // Execute action
-        const result = handler(state, options.targetSkill);
-
-        if (result.success) {
-            // Consume action
-            this._gameState.consumeAction();
-
-            // Record action (use action name, not button ID)
-            this._gameState.recordAction(actionName);
-
-            // Process skill exp gains
-            if (result.expGains) {
-                this._processExpGains(result.expGains, result);
+            // Check game over
+            if (this._gameState.isGameOver()) {
+                return { success: false, message: 'ゲームオーバー' };
             }
 
-            // Emit action executed event
-            this._eventBus.emit(GameEvents.ACTION_EXECUTED, {
-                actionId: actionName,
-                phase,
-                message: result.message,
-                result,
-                state: this._gameState.getState()
-            });
-        }
+            // Check actions remaining
+            const remainingActions = this._gameState.getActionsRemaining();
+            if (remainingActions <= 0) {
+                return { success: false, message: 'アクションがありません' };
+            }
 
-        return result;
+            // Map button IDs to action names
+            let actionName = null;
+            if (typeof actionId === 'number') {
+                // Legacy button IDs (1-4) -> map to action names
+                if (phase === 'day') {
+                    const dayActionMap = {
+                        1: 'cleaning',      // 皿洗い -> 掃除・皿洗い
+                        2: 'chopping',      // 下準備
+                        3: 'heatControl'    // 火の番
+                    };
+                    actionName = dayActionMap[actionId];
+                } else if (phase === 'night') {
+                    const nightActionMap = {
+                        1: 'trialCooking',  // シチュー試作
+                        2: 'study',         // 研究
+                        3: 'rest'           // 休息
+                    };
+                    actionName = nightActionMap[actionId];
+                }
+            } else {
+                // Already an action name string
+                actionName = actionId;
+            }
+
+            if (!actionName) {
+                console.error(`KitchenEngine: Unknown action ID "${actionId}" for phase "${phase}"`);
+                return { success: false, message: '不明なアクション' };
+            }
+
+            // Get appropriate handler
+            const handlers = phase === 'day' ? this._dayActionHandlers : this._nightActionHandlers;
+            const handler = handlers.get(actionName);
+
+            if (!handler) {
+                console.error(`KitchenEngine: Unknown action "${actionName}" for phase "${phase}"`);
+                return { success: false, message: '不明なアクション' };
+            }
+
+            // Execute action
+            const result = handler(state, options.targetSkill);
+
+            if (result && result.success) {
+                // CRITICAL: Consume action FIRST to update remainingActions
+                // This ensures state is updated before emitting events
+                const actionConsumed = this._gameState.consumeAction();
+                
+                if (!actionConsumed) {
+                    // Action consumption failed (no actions remaining)
+                    console.warn(`KitchenEngine: Failed to consume action for ${actionName} - no actions remaining`);
+                    return {
+                        success: false,
+                        message: '<div class="result-item failure">アクションがありません</div>'
+                    };
+                }
+
+                // Record action (use action name, not button ID)
+                this._gameState.recordAction(actionName);
+
+                // Process skill exp gains
+                if (result.expGains) {
+                    this._processExpGains(result.expGains, result);
+                }
+
+                // CRITICAL: Emit action executed event with updated state
+                // This ensures UI receives the latest state including updated remainingActions
+                const updatedState = this._gameState.getState();
+                this._eventBus.emit(GameEvents.ACTION_EXECUTED, {
+                    actionId: actionName,
+                    phase,
+                    message: result.message,
+                    result,
+                    state: updatedState
+                });
+                
+                console.log(`KitchenEngine: Action ${actionName} executed successfully, remainingActions: ${updatedState[phase === 'day' ? 'dayActionsRemaining' : 'nightActionsRemaining']}`);
+            } else {
+                // Action failed (e.g., insufficient stamina)
+                // Still emit event but with success: false to notify UI
+                this._eventBus.emit(GameEvents.ACTION_EXECUTED, {
+                    actionId: actionName,
+                    phase,
+                    message: result?.message || 'アクション実行失敗',
+                    result,
+                    state: this._gameState.getState(),
+                    success: false
+                });
+            }
+
+            return result || { success: false, message: 'アクション実行に失敗しました' };
+        } catch (error) {
+            // CRITICAL: Error handling to prevent game freeze
+            console.error(`KitchenEngine.executeAction: Error executing action ${actionId}:`, error);
+            return {
+                success: false,
+                message: '<div class="result-item failure">アクション実行中にエラーが発生しました</div>',
+                error: error.message
+            };
+        }
     }
 
     // ===== DAY ACTION HANDLERS =====
@@ -187,80 +224,106 @@ class KitchenEngine {
      * @private
      */
     _executeDayAction(state, config, actionType) {
-        // Check stamina
-        if (state.stamina < config.staminaCost) {
+        // CRITICAL: Error handling with try-finally to ensure state consistency
+        try {
+            // Check stamina
+            if (state.stamina < config.staminaCost) {
+                return {
+                    success: false,
+                    message: `<div class="result-item failure">体力が足りない！（必要: ${config.staminaCost}）</div>`
+                };
+            }
+
+            // CRITICAL: Get policy from state to prevent ReferenceError
+            const policy = state?.currentPolicy || null;
+
+            // Consume stamina
+            const staminaConsumed = this._gameState.consumeStamina(config.staminaCost);
+            if (!staminaConsumed) {
+                return {
+                    success: false,
+                    message: `<div class="result-item failure">スタミナ消費に失敗しました</div>`
+                };
+            }
+
+            // Calculate success
+            const successRate = this._calculateSuccessRate(state);
+            const isCritical = this._isCriticalSuccess();
+            const success = Math.random() < successRate;
+
+            let message = '';
+            const expGains = {};
+            const conditionInfo = this._gameState.getConditionInfo();
+
+            if (success) {
+                // Apply challenge policy: 成功時のみ経験値2倍
+                let expMultiplier = 1.0;
+                if (policy === 'challenge') {
+                    // 新しい挑戦: 成功時は経験値2倍（失敗時はここに来ない）
+                    expMultiplier = 2.0;
+                }
+                
+                // Calculate exp gains
+                for (const [skill, rewards] of Object.entries(config.expRewards || {})) {
+                    const baseExp = isCritical ? rewards.bonus : rewards.base;
+                    expGains[skill] = Math.floor(baseExp * expMultiplier);
+                }
+
+                message = `<div class="result-item success">${config.icon} ${config.name}成功！</div>`;
+
+                if (isCritical) {
+                    message = `<div class="result-item critical">🌟 クリティカル！ ${config.name}が大成功！</div>`;
+                    this._eventBus.emit('action:critical_success', { actionType });
+                }
+
+                // Show exp gains
+                for (const [skill, exp] of Object.entries(expGains)) {
+                    const skillName = GameConfig.skills.names[skill];
+                    const multiplier = conditionInfo.expMultiplier;
+                    const actualExp = Math.floor(exp * multiplier);
+                    message += `<div class="result-item exp-gain">${skillName} +${actualExp} EXP</div>`;
+                }
+
+                // Mood boost
+                this._gameState.adjust('oldManMood', isCritical ? 8 : 3, 0, 100);
+            } else {
+                // Failure
+                message = `<div class="result-item failure">${config.icon} ${config.name}失敗...</div>`;
+
+                // Small exp even on failure (learning from mistakes)
+                for (const [skill] of Object.entries(config.expRewards || {})) {
+                    expGains[skill] = 5;
+                }
+
+                // Add tech debt on failure
+                this._gameState.increaseTechDebt(GameConfig.techDebt?.failurePenalty ?? 1);
+                message += `<div class="result-item negative">技術的負債 +${GameConfig.techDebt?.failurePenalty ?? 1}</div>`;
+            }
+
+            // Show condition effect
+            if (conditionInfo.expMultiplier !== 1.0) {
+                const conditionText = conditionInfo.expMultiplier > 1
+                    ? `${conditionInfo.name}で経験値UP！ (x${conditionInfo.expMultiplier})`
+                    : `${conditionInfo.name}で経験値DOWN... (x${conditionInfo.expMultiplier})`;
+                message += `<div class="result-item condition">${conditionInfo.icon} ${conditionText}</div>`;
+            }
+
+            return {
+                success: true,
+                actionSuccess: success,
+                isCritical,
+                message,
+                expGains
+            };
+        } catch (error) {
+            // CRITICAL: Error handling to prevent game freeze
+            console.error(`KitchenEngine._executeDayAction: Error executing action ${actionType}:`, error);
             return {
                 success: false,
-                message: `<div class="result-item failure">体力が足りない！（必要: ${config.staminaCost}）</div>`
+                message: `<div class="result-item failure">アクション実行中にエラーが発生しました</div>`,
+                error: error.message
             };
         }
-
-        // Consume stamina
-        this._gameState.consumeStamina(config.staminaCost);
-
-        // Calculate success
-        const successRate = this._calculateSuccessRate(state);
-        const isCritical = this._isCriticalSuccess();
-        const success = Math.random() < successRate;
-
-        let message = '';
-        const expGains = {};
-        const conditionInfo = this._gameState.getConditionInfo();
-
-        if (success) {
-            // Calculate exp gains
-            for (const [skill, rewards] of Object.entries(config.expRewards)) {
-                const baseExp = isCritical ? rewards.bonus : rewards.base;
-                expGains[skill] = baseExp;
-            }
-
-            message = `<div class="result-item success">${config.icon} ${config.name}成功！</div>`;
-
-            if (isCritical) {
-                message = `<div class="result-item critical">🌟 クリティカル！ ${config.name}が大成功！</div>`;
-                this._eventBus.emit('action:critical_success', { actionType });
-            }
-
-            // Show exp gains
-            for (const [skill, exp] of Object.entries(expGains)) {
-                const skillName = GameConfig.skills.names[skill];
-                const multiplier = conditionInfo.expMultiplier;
-                const actualExp = Math.floor(exp * multiplier);
-                message += `<div class="result-item exp-gain">${skillName} +${actualExp} EXP</div>`;
-            }
-
-            // Mood boost
-            this._gameState.adjust('oldManMood', isCritical ? 8 : 3, 0, 100);
-
-        } else {
-            // Failure
-            message = `<div class="result-item failure">${config.icon} ${config.name}失敗...</div>`;
-
-            // Small exp even on failure (learning from mistakes)
-            for (const [skill] of Object.entries(config.expRewards)) {
-                expGains[skill] = 5;
-            }
-
-            // Add tech debt on failure
-            this._gameState.increaseTechDebt(GameConfig.techDebt.failurePenalty);
-            message += `<div class="result-item negative">技術的負債 +${GameConfig.techDebt.failurePenalty}</div>`;
-        }
-
-        // Show condition effect
-        if (conditionInfo.expMultiplier !== 1.0) {
-            const conditionText = conditionInfo.expMultiplier > 1
-                ? `${conditionInfo.name}で経験値UP！ (x${conditionInfo.expMultiplier})`
-                : `${conditionInfo.name}で経験値DOWN... (x${conditionInfo.expMultiplier})`;
-            message += `<div class="result-item condition">${conditionInfo.icon} ${conditionText}</div>`;
-        }
-
-        return {
-            success: true,
-            actionSuccess: success,
-            isCritical,
-            message,
-            expGains
-        };
     }
 
     /**
@@ -268,18 +331,47 @@ class KitchenEngine {
      * @private
      */
     _executeCleaningAction(state, config) {
-        // Check stamina
-        if (state.stamina < config.staminaCost) {
+        // CRITICAL: No early returns or lock flags that could prevent action completion
+        // All returns are explicit and properly formatted
+        
+        // Apply policy multiplier to stamina cost
+        let actualStaminaCost = config.staminaCost;
+        const policy = state.currentPolicy;
+        
+        if (policy === 'challenge') {
+            // 新しい挑戦: 成功判定（50%成功率）
+            const challengeSuccess = Math.random() < 0.5;
+            if (!challengeSuccess) {
+                // 失敗: スタミナ-30
+                actualStaminaCost = 30;
+            }
+        } else {
+            // 品質重視・スピード重視: スタミナ消費倍率を適用
+            const staminaMultiplier = this._gameState.getPolicyStaminaMultiplier();
+            actualStaminaCost = Math.floor(config.staminaCost * staminaMultiplier);
+        }
+        
+        // Check stamina (with policy-adjusted cost)
+        // This is the ONLY early return, and it's appropriate for insufficient stamina
+        if (state.stamina < actualStaminaCost) {
             return {
                 success: false,
-                message: `<div class="result-item failure">体力が足りない！（必要: ${config.staminaCost}）</div>`
+                message: `<div class="result-item failure">体力が足りない！（必要: ${actualStaminaCost}）</div>`
             };
         }
 
-        // Consume stamina
-        this._gameState.consumeStamina(config.staminaCost);
+        // CRITICAL: All state mutations happen here - no locks or flags
+        // Consume stamina (with policy adjustment)
+        const staminaConsumed = this._gameState.consumeStamina(actualStaminaCost);
+        if (!staminaConsumed) {
+            // Should not happen if check above passed, but handle gracefully
+            return {
+                success: false,
+                message: `<div class="result-item failure">スタミナ消費に失敗しました</div>`
+            };
+        }
 
-        // Always succeeds
+        // Always succeeds after stamina consumption
         const reduction = config.techDebtReduction;
         const oldDebt = state.technicalDebt;
         this._gameState.reduceTechDebt(reduction);
@@ -298,6 +390,8 @@ class KitchenEngine {
         this._gameState.adjust('oldManMood', 2, 0, 100);
         message += `<div class="result-item positive">老店主の機嫌 +2</div>`;
 
+        // CRITICAL: Always returns success: true with proper structure
+        // No hidden flags or locks that could prevent completion
         return {
             success: true,
             actionSuccess: true,
@@ -427,17 +521,24 @@ class KitchenEngine {
      */
     _executeRest(state, config) {
         // Rest always succeeds and costs no stamina
-        const recovery = config.staminaRecovery;
+        // 「休む」コマンド: スタミナ +60 回復（上限100） + 集中ボーナス付与
         const oldStamina = state.stamina;
-
-        this._gameState.recoverStamina(recovery);
+        
+        // スタミナを +60 回復（上限100）
+        // recoverStamina()が自動的に上限チェックを行う
+        this._gameState.recoverStamina(60);
+        
         const newStamina = this._gameState.get('stamina');
         const actualRecovery = newStamina - oldStamina;
 
         let message = `<div class="result-item success">${config.icon} ${config.name}完了！</div>`;
-        message += `<div class="result-item positive">体力 +${actualRecovery}</div>`;
+        message += `<div class="result-item positive">体力全回復！ +${actualRecovery}（${newStamina}/100）</div>`;
+        
+        // 集中ボーナス: 次のアクションで経験値+20%のボーナス（1回限り）
+        // GameStateにフラグを設定し、次のアクション実行時に適用される
+        this._gameState.update({ hasRestBonus: true });
 
-        // Try to improve condition
+        // Try to improve condition (高い確率で調子が改善)
         const conditionImproved = Math.random() < config.conditionImproveChance;
         if (conditionImproved) {
             const oldCondition = state.condition;
@@ -447,10 +548,10 @@ class KitchenEngine {
                 const newInfo = this._gameState.getConditionInfo();
                 message += `<div class="result-item condition-up">${newInfo.icon} 調子が ${newInfo.name} になった！</div>`;
             } else {
-                message += `<div class="result-item neutral">ゆっくり休めた</div>`;
+                message += `<div class="result-item positive">💤 ゆっくり休めた（集中ボーナス付与）</div>`;
             }
         } else {
-            message += `<div class="result-item neutral">体力は回復したが、調子は変わらず</div>`;
+            message += `<div class="result-item positive">💤 完全に回復した（集中ボーナス付与）</div>`;
         }
 
         return {
@@ -470,10 +571,16 @@ class KitchenEngine {
      */
     _processExpGains(expGains, result) {
         let levelUpMessage = '';
+        let restBonusMessage = '';
 
         for (const [skill, baseExp] of Object.entries(expGains)) {
             if (baseExp > 0) {
                 const expResult = this._gameState.addSkillExp(skill, baseExp);
+
+                // Show rest bonus message if applied (only once)
+                if (expResult.restBonusApplied && !restBonusMessage) {
+                    restBonusMessage = `<div class="result-item rest-bonus">💤 集中ボーナス！ 経験値+20%</div>`;
+                }
 
                 if (expResult.levelUp) {
                     const skillName = GameConfig.skills.names[skill];
@@ -489,6 +596,11 @@ class KitchenEngine {
                     });
                 }
             }
+        }
+
+        // Add rest bonus message if applied
+        if (restBonusMessage) {
+            result.message += restBonusMessage;
         }
 
         if (levelUpMessage) {

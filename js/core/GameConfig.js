@@ -355,27 +355,6 @@ const GameConfig = {
         criticalGlowDuration: 1500
     },
 
-    // ===== STAGNATION SYSTEM =====
-    stagnation: {
-        /** Warning threshold for stagnation */
-        warningThreshold: 60,
-        /** Maximum stagnation value */
-        max: 100,
-        /** Initial stagnation */
-        initial: 30
-    },
-
-    // ===== ACTIONS CONFIG (Legacy button mapping) =====
-    actions: {
-        /** Action costs by button ID (for legacy UI compatibility) */
-        costs: {
-            1: 10,  // Cleaning
-            2: 20,  // Chopping
-            3: 30,  // Heat Control
-            4: 0    // Rest (no cost)
-        }
-    },
-
     // ===== LEGACY SUPPORT =====
     growth: {
         scaleFactor: 50 / 26,
@@ -412,9 +391,6 @@ Object.freeze(GameConfig.successRate.penalties);
 Object.freeze(GameConfig.successRate.bonuses);
 Object.freeze(GameConfig.techDebt);
 Object.freeze(GameConfig.ui);
-Object.freeze(GameConfig.stagnation);
-Object.freeze(GameConfig.actions);
-Object.freeze(GameConfig.actions.costs);
 Object.freeze(GameConfig.growth);
 
 // Export for ES6 modules

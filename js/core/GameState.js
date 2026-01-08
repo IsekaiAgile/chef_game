@@ -109,6 +109,12 @@ class GameState {
              */
             hasRestBonus: false,
 
+            // ===== AUTO MODE SYSTEM =====
+            /**
+             * Auto mode flag: true when dialogue auto-advance is enabled
+             */
+            isAutoMode: false,
+
             // Action tracking
             lastAction: null,
             actionHistory: [],
@@ -764,6 +770,66 @@ class GameState {
     }
 
     // ===== GAME LIFECYCLE =====
+
+    /**
+     * Toggle auto mode for dialogue advancement
+     * @returns {boolean} New auto mode state
+     */
+    toggleAutoMode() {
+        const newState = !this._state.isAutoMode;
+        this.update({ isAutoMode: newState });
+        console.log('Auto Mode:', this._state.isAutoMode);
+        return newState;
+    }
+
+    /**
+     * Get current auto mode state
+     * @returns {boolean}
+     */
+    getAutoMode() {
+        return this._state.isAutoMode || false;
+    }
+
+    /**
+     * Reset to Day 1 (used by skip button)
+     * Immediately returns to Day 1 morning screen, clearing all dialogue
+     */
+    resetToDay1() {
+        console.log('Skip: Resetting to Day 1');
+        
+        // Reset day to 1, recover stamina, keep skills
+        const currentSkills = { ...this._state.skills };
+        const currentExperience = { ...this._state.experience };
+        
+        // Apply 5% experience decay on retry
+        const decayedExperience = {};
+        for (const [skill, exp] of Object.entries(currentExperience)) {
+            decayedExperience[skill] = Math.floor(exp * 0.95);
+        }
+
+        this.update({
+            day: 1,
+            currentPhase: 'day',
+            dayActionsRemaining: GameConfig.phases.DAY.actionsAllowed,
+            nightActionsRemaining: GameConfig.phases.NIGHT.actionsAllowed,
+            stamina: GameConfig.stamina.initial,
+            condition: GameConfig.condition.initial,
+            currentPolicy: null,
+            hasRestBonus: false,
+            isAutoMode: false, // Turn off auto mode on reset
+            skills: currentSkills,
+            experience: decayedExperience,
+            todayActions: [],
+            actionHistory: [],
+            judgmentTriggered: false,
+            introComplete: false
+        });
+
+        this._eventBus.emit('game:reset_to_day_one', {
+            day: 1,
+            state: this.getState()
+        });
+    }
 
     /**
      * Reset game to initial state

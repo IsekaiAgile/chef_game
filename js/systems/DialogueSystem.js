@@ -24,13 +24,16 @@
 class DialogueSystem {
     /**
      * @param {EventBus} eventBus - Event bus for communication
+     * @param {GameState} gameState - Game state manager (for auto mode)
      * @param {Object} config - Configuration options
      */
-    constructor(eventBus, config = {}) {
+    constructor(eventBus, gameState = null, config = {}) {
         this._eventBus = eventBus;
+        this._gameState = gameState; // Store reference for auto mode check
         this._config = {
             typingSpeed: config.typingSpeed || 30,
-            characters: config.characters || {}
+            characters: config.characters || {},
+            autoAdvanceDelay: config.autoAdvanceDelay || 2000
         };
 
         // Internal state
@@ -40,11 +43,20 @@ class DialogueSystem {
         this._currentText = '';
         this._charIndex = 0;
         this._typingInterval = null;
+        this._autoAdvanceTimeout = null;
         this._onComplete = null;
         this._dialogueType = 'default';
 
         // Bind methods for event handling
         this._boundAdvance = this.advance.bind(this);
+    }
+
+    /**
+     * Set GameState reference (if not provided in constructor)
+     * @param {GameState} gameState
+     */
+    setGameState(gameState) {
+        this._gameState = gameState;
     }
 
     /**
@@ -229,12 +241,45 @@ class DialogueSystem {
             fullText: this._currentText,
             isComplete: true
         });
+
+        // CRITICAL: Auto-advance if auto mode is enabled
+        // Check GameState's isAutoMode flag and auto-advance after delay
+        if (this._gameState && this._gameState.getAutoMode && this._gameState.getAutoMode()) {
+            this._scheduleAutoAdvance();
+        }
+    }
+
+    /**
+     * Schedule auto-advance after typing completes
+     * @private
+     */
+    _scheduleAutoAdvance() {
+        // Clear any existing auto-advance timeout
+        if (this._autoAdvanceTimeout) {
+            clearTimeout(this._autoAdvanceTimeout);
+        }
+
+        console.log('Auto: Next step scheduled in 2s');
+
+        // Schedule auto-advance after configured delay (default 2000ms)
+        this._autoAdvanceTimeout = setTimeout(() => {
+            // Double-check auto mode is still enabled before advancing
+            if (this._gameState && this._gameState.getAutoMode && this._gameState.getAutoMode() && this.isActive() && !this._isTyping) {
+                this.advance();
+            }
+            this._autoAdvanceTimeout = null;
+        }, this._config.autoAdvanceDelay || 2000);
     }
 
     _stopTyping() {
         if (this._typingInterval) {
             clearInterval(this._typingInterval);
             this._typingInterval = null;
+        }
+        // Also clear auto-advance timeout when stopping typing
+        if (this._autoAdvanceTimeout) {
+            clearTimeout(this._autoAdvanceTimeout);
+            this._autoAdvanceTimeout = null;
         }
     }
 

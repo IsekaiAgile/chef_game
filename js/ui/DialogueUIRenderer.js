@@ -356,6 +356,30 @@ class DialogueUIRenderer {
         // Primary: Click layer (covers entire VN overlay)
         if (clickLayer) {
             clickLayer.addEventListener('click', (e) => {
+                // CRITICAL: Don't advance if clicking on buttons
+                // Check if target is a button or inside a button
+                if (e.target.tagName === 'BUTTON') {
+                    e.stopPropagation();
+                    return;
+                }
+                // Check if target is inside a button element
+                if (e.target.closest('button')) {
+                    e.stopPropagation();
+                    return;
+                }
+                // Check for specific button classes
+                if (e.target.classList.contains('vn-skip-btn') || 
+                    e.target.classList.contains('vn-auto-btn') || 
+                    e.target.classList.contains('vn-control-btn')) {
+                    e.stopPropagation();
+                    return;
+                }
+                // Check if target is inside control buttons container
+                if (e.target.closest('.vn-control-buttons')) {
+                    e.stopPropagation();
+                    return;
+                }
+                // Only advance if none of the above conditions are met
                 e.stopPropagation();
                 // Play dialogue advance sound
                 if (typeof gameEffects !== 'undefined') {
@@ -368,12 +392,41 @@ class DialogueUIRenderer {
         // Fallback: Also attach to overlay itself
         if (overlay) {
             overlay.addEventListener('click', (e) => {
-                // Don't advance on skip button click or if clicking on buttons
-                if (e.target.classList.contains('vn-skip-btn')) return;
-                if (e.target.classList.contains('vn-auto-btn')) return;
-                if (e.target.classList.contains('vn-control-btn')) return;
-                if (e.target.tagName === 'BUTTON') return;
-                if (e.target.closest('.vn-control-buttons')) return;
+                // CRITICAL: Don't advance on button clicks - check multiple conditions
+                // Check if target is a button or inside a button
+                if (e.target.tagName === 'BUTTON') {
+                    e.stopPropagation();
+                    return;
+                }
+                // Check if target is inside a button element
+                if (e.target.closest('button')) {
+                    e.stopPropagation();
+                    return;
+                }
+                // Check for specific button classes
+                if (e.target.classList.contains('vn-skip-btn')) {
+                    e.stopPropagation();
+                    return;
+                }
+                if (e.target.classList.contains('vn-auto-btn')) {
+                    e.stopPropagation();
+                    return;
+                }
+                if (e.target.classList.contains('vn-control-btn')) {
+                    e.stopPropagation();
+                    return;
+                }
+                // Check if target is inside control buttons container
+                if (e.target.closest('.vn-control-buttons')) {
+                    e.stopPropagation();
+                    return;
+                }
+                // Check if target is inside any button container
+                if (e.target.closest('[data-action]')) {
+                    e.stopPropagation();
+                    return;
+                }
+                // Only advance if none of the above conditions are met
                 advanceCallback();
             });
         }
@@ -382,6 +435,11 @@ class DialogueUIRenderer {
         const dialogueBox = document.querySelector('.vn-dialogue-box');
         if (dialogueBox) {
             dialogueBox.addEventListener('click', (e) => {
+                // CRITICAL: Don't advance if clicking on buttons
+                if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                    e.stopPropagation();
+                    return;
+                }
                 e.stopPropagation();
                 advanceCallback();
             });

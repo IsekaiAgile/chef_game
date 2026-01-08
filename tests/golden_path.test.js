@@ -10,10 +10,11 @@
  * 5. 夜フェーズではユーザーの入力があるまで日付が進まないこと
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { EventBus } from '../js/core/EventBus.js';
 import { GameState } from '../js/core/GameState.js';
 import { KitchenEngine } from '../js/systems/KitchenEngine.js';
+import { DialogueSystem } from '../js/systems/DialogueSystem.js';
 
 describe('Golden Path: ゴールデンパス厳格検証', () => {
     let eventBus;
@@ -500,6 +501,158 @@ describe('Golden Path: ゴールデンパス厳格検証', () => {
             expect(finalState.currentPhase).toBe('night');
             expect(finalState.dayActionsRemaining).toBe(0);
             expect(finalState.nightActionsRemaining).toBe(0);
+        });
+    });
+
+    // =========================================================================
+    // 6. Autoモード: フラグがtrueの時に advance が呼ばれること
+    // =========================================================================
+    describe('6. Autoモード: isAutoMode フラグで advance が自動実行される', () => {
+        let dialogueSystem;
+
+        beforeEach(() => {
+            vi.useFakeTimers();
+            dialogueSystem = new DialogueSystem(eventBus, gameState, {
+                typingSpeed: 1, // 高速タイピングでテストを速く
+                autoAdvanceDelay: 2000
+            });
+        });
+
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        it('初期状態で isAutoMode は false であること', () => {
+            expect(gameState.getAutoMode()).toBe(false);
+            expect(gameState.getState().isAutoMode).toBe(false);
+        });
+
+        it('toggleAutoMode() で isAutoMode が true になること', () => {
+            const result = gameState.toggleAutoMode();
+            expect(result).toBe(true);
+            expect(gameState.getAutoMode()).toBe(true);
+            expect(gameState.getState().isAutoMode).toBe(true);
+        });
+
+        it('toggleAutoMode() を2回呼ぶと isAutoMode が false に戻ること', () => {
+            gameState.toggleAutoMode(); // true
+            gameState.toggleAutoMode(); // false
+            expect(gameState.getAutoMode()).toBe(false);
+        });
+
+        it('Autoモードがオンの時、タイピング完了後に advance() がスケジュールされること', () => {
+            // Autoモードをオン
+            gameState.toggleAutoMode();
+            expect(gameState.getAutoMode()).toBe(true);
+
+            // advance をスパイ
+            const advanceSpy = vi.spyOn(dialogueSystem, 'advance');
+
+            // ダイアログを開始
+            dialogueSystem.start([
+                { speaker: 'test', text: 'Hello' },
+                { speaker: 'test', text: 'World' }
+            ]);
+
+            // タイピング完了まで進める
+            vi.advanceTimersByTime(500);
+
+            // 2秒（autoAdvanceDelay）待機
+            vi.advanceTimersByTime(2000);
+
+            // advance が呼ばれたことを確認
+            expect(advanceSpy).toHaveBeenCalled();
+        });
+
+        it('Autoモードがオフの時、タイピング完了後に advance() が自動呼び出しされないこと', () => {
+            // Autoモードはオフのまま
+            expect(gameState.getAutoMode()).toBe(false);
+
+            // advance をスパイ
+            const advanceSpy = vi.spyOn(dialogueSystem, 'advance');
+
+            // ダイアログを開始
+            dialogueSystem.start([
+                { speaker: 'test', text: 'Hello' },
+                { speaker: 'test', text: 'World' }
+            ]);
+
+            // タイピング完了まで進める
+            vi.advanceTimersByTime(500);
+
+            // 2秒（autoAdvanceDelay）待機
+            vi.advanceTimersByTime(2000);
+
+            // advance が自動で呼ばれていないことを確認
+            expect(advanceSpy).not.toHaveBeenCalled();
+        });
+
+        it('Autoモードオン中に途中でオフにすると、advance() は呼ばれないこと', () => {
+            // Autoモードをオン
+            gameState.toggleAutoMode();
+            expect(gameState.getAutoMode()).toBe(true);
+
+            const advanceSpy = vi.spyOn(dialogueSystem, 'advance');
+
+            // ダイアログを開始
+            dialogueSystem.start([
+                { speaker: 'test', text: 'Hello' },
+                { speaker: 'test', text: 'World' }
+            ]);
+
+            // タイピング完了まで進める
+            vi.advanceTimersByTime(500);
+
+            // タイマー発火前にAutoモードをオフ
+            gameState.toggleAutoMode();
+            expect(gameState.getAutoMode()).toBe(false);
+
+            // 2秒待機
+            vi.advanceTimersByTime(2000);
+
+            // advance が呼ばれていないことを確認（Autoモードがオフになったため）
+            expect(advanceSpy).not.toHaveBeenCalled();
+        });
+
+        it('reset() で isAutoMode が false にリセットされること', () => {
+            gameState.toggleAutoMode();
+            expect(gameState.getAutoMode()).toBe(true);
+
+            gameState.reset();
+
+            expect(gameState.getAutoMode()).toBe(false);
+            expect(gameState.getState().isAutoMode).toBe(false);
+        });
+
+        it('Autoモード有効時、advance() が繰り返し呼ばれて次のダイアログへ進むこと', () => {
+            // Autoモードをオン
+            gameState.toggleAutoMode();
+
+            const advanceSpy = vi.spyOn(dialogueSystem, 'advance');
+
+            // 3つのダイアログを開始
+            dialogueSystem.start([
+                { speaker: 'test', text: 'A' },
+                { speaker: 'test', text: 'B' },
+                { speaker: 'test', text: 'C' }
+            ]);
+
+            // 最初のダイアログ開始を確認
+            expect(dialogueSystem.isActive()).toBe(true);
+
+            // タイピング完了 + auto advance delay を繰り返す
+            // 1文字 = 1ms (typingSpeed: 1) + 2000ms (autoAdvanceDelay)
+            vi.advanceTimersByTime(100); // タイピング完了
+            vi.advanceTimersByTime(2000); // auto advance
+
+            // advance が呼ばれたことを確認
+            expect(advanceSpy).toHaveBeenCalledTimes(1);
+
+            // 次のダイアログへ
+            vi.advanceTimersByTime(100);
+            vi.advanceTimersByTime(2000);
+
+            expect(advanceSpy).toHaveBeenCalledTimes(2);
         });
     });
 });
